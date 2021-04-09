@@ -1,14 +1,14 @@
 # TV Time to Trakt - Import Script
 ![](https://loch.digital/image_for_external_apps/4342799-01.png)
 
-A Python script to import TV Time tracked episode data into Trakt.TV - using data provided by Whip Media Company via a GDPR request.
+A Python script to import TV Time tracked episode data into Trakt.TV - using data export provided by TV Time through a GDPR request.
 
 # Issues
 They'll be a few! This was quickly put together within a few hours or so for personal usage. If you come across anything then let me know in the 'Issue' section, and I'll provide support where possible.
 
 # Notes
 1. The script is using limited data provided from a GDPR request - so the accuracy isn't 100%. But you will be prompted to manually pick the Trakt show, when it can't be determined automatically.
-2. A delay of 5 seconds is added between each episode to ensure fair use of Trakt's API server - especially with my import of 6,500 episodes. You should adjust this for your own import, but make sure it's at least 1 second to remain within the rate limit.
+2. A delay of 5 seconds is added between each episode to ensure fair use of Trakt's API server. You should adjust this for your own import, but make sure it's at least 1 second to remain within the rate limit.
 3. Episodes which have been processed will be saved to a TinyDB file `localStorage.json` - when you restart the script, the program will skip those episodes which have been marked 'imported'.
 
 # Setup
@@ -46,7 +46,7 @@ Create a new file named `config.json` in the same directory of `TimeToTrakt.py`,
 }
 ```
 
-Then, execute the program using `./python3 TimeToTrakt.py` - make sure to pop back during a long import to provide the correct Trakt TV Show selections.
+Once the config is in place, execute the program using `python TimeToTrakt.py`. The process isn't 100% automated - you will need to pop back, especially with large imports, to check if the script requires a manual user input.
 
 ##### Credit
 <a href='https://www.freepik.com/vectors/city'>City vector created by freepik - www.freepik.com</a>
