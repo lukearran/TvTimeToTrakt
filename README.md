@@ -28,8 +28,20 @@ The TV Time API is request based only. In order to get access to your data, you 
 7. Make note of your app
 
 ## Setup Script
+### Install Required Libraries
 Install the following frameworks via Pip:
 1. trakt
 2. tinydb
+### Setup Configuration
+Create a new file named `config.json`, with the below JSON (replace values with your own).
 
-Then, execute the program using the `./python3 TimeToTrakt.py` and provide the requested information when prompted.
+```
+{
+    "CLIENT_ID": "YOUR_CLIENT_ID",
+    "CLIENT_SECRET": "YOUR_CLIENT_SECRET",
+    "GDPR_WORKSPACE_PATH": "DIRECTORY_OF_YOUR_GDPR_REQUEST_DATA",
+    "TRAKT_USERNAME": "YOUR_TRAKT_USERNAME"
+}
+```
+
+Then, execute the program using the `./python3 TimeToTrakt.py` - make sure to pop back and confirm selection of shows when prompted.
