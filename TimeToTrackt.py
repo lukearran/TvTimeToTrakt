@@ -14,6 +14,10 @@ import json
 import re
 import sys
 
+# Adjust this value to increase/decrease your requests between episodes.
+# Make sure it's above 1 seconds to remain within the rate limit.
+DELAY_BETWEEN_EPISODES_IN_SECONDS = 5
+
 # Create a database to keep track of completed processes
 database = TinyDB('localStorage.json')
 syncedEpisodesTable = database.table('SyncedEpisodes')
@@ -265,16 +269,16 @@ def processWatchedShows():
                         try:
                             # Sleep for a second between each process, before adding the next watched episode,
                             # this ensures that the program is within the rate limit of 1 per second.
-                            time.sleep(5)
-                            # Output to console
-                            print(f"({rowsCount}/{rowsTotal}) Processing Show '" + tvShowName +
-                                  "' on Season " + tvShowSeasonNo + " - Episode " + tvShowEpisodeNo)
+                            time.sleep(DELAY_BETWEEN_EPISODES_IN_SECONDS)
                             # Get the Trakt version of the show
                             traktShowObj = getShowByName(
                                 tvShowName, tvShowSeasonNo, tvShowEpisodeNo)
                             # Skip the episode, if no show was selected
                             if traktShowObj == None:
                                 break
+                            # Output to console
+                            print(f"({rowsCount}/{rowsTotal}) Processing Show '" + tvShowName +
+                                  "' on Season " + tvShowSeasonNo + " - Episode " + tvShowEpisodeNo)
                             # Add the show to the user's library
                             traktShowObj.add_to_library()
                             # Get the season
