@@ -53,6 +53,10 @@ def getWatchedShowsPath():
     return config.GDPR_WORKSPACE_PATH + "/seen_episode.csv"
 
 
+def getFollowedShowsPath():
+    return config.GDPR_WORKSPACE_PATH + "/followed_tv_show.csv"
+
+
 def initTraktAuth():
     # Set the method of authentication
     trakt.core.AUTH_METHOD = trakt.core.OAUTH_AUTH
@@ -205,7 +209,7 @@ def getShowByName(name, seasonNo, episodeNo):
                 # Display the show's title, broadcast year, amount of seasons and a link to the Trakt page.
                 # This will provide the user with enough information to make a selection.
                 print(
-                    f"    ({idx}) {item.title} - {item.year} - {len(item.seasons)} Season(s) - More Info: https://trakt.tv/{item.ext}")
+                    f"    ({idx + 1}) {item.title} - {item.year} - {len(item.seasons)} Season(s) - More Info: https://trakt.tv/{item.ext}")
 
             while(True):
                 try:
@@ -215,7 +219,7 @@ def getShowByName(name, seasonNo, episodeNo):
 
                     if indexSelected != 'SKIP':
                         # Since the value isn't 'skip', check that the result is numerical
-                        int(indexSelected)
+                        indexSelected = int(indexSelected) - 1
                         # Exit the selection loop
                         break
                     # Otherwise, exit the loop
@@ -248,9 +252,12 @@ def getShowByName(name, seasonNo, episodeNo):
                 return selectedShow
 
     else:
-        # If the search returned only one result, then awesome!
-        # Return the show, so the import automation can continue.
-        return showsWithSameName[0]
+        if (len(showsWithSameName) > 0):
+            # If the search returned only one result, then awesome!
+            # Return the show, so the import automation can continue.
+            return showsWithSameName[0]
+        else:
+            return None
 
 # Since the Trakt.Py starts the indexing of seasons in the array from 0 (e.g Season 1 in Index 0), then
 # subtract the TV Time numerical value by 1 so it starts from 0 as well. However, when a TV series includes
@@ -356,8 +363,6 @@ def processWatchedShows():
                             # Show the progress of the import on-screen
                             print(
                                 f"({rowsCount}/{rowsTotal}) Processing Show {tvShowName} on Season {tvShowSeasonNo} - Episode {tvShowEpisodeNo}")
-                            # Add the show to the user's library for tracking
-                            traktShowObj.add_to_library()
                             # Get the season from the Trakt API
                             season = traktShowObj.seasons[parseSeasonNo(
                                 tvShowSeasonNo, traktShowObj)]
@@ -415,12 +420,71 @@ def processWatchedShows():
                         f"({rowsCount}/{rowsTotal}) Skipping '{tvShowName}' Season {tvShowSeasonNo} Episode {tvShowEpisodeNo}. It's already been imported.")
 
 
+# def processMaintainRecords():
+#     # Total amount of rows which have been processed in the CSV file
+#     rowsCount = 0
+#     # Total amount of rows in the CSV file
+#     rowsTotal = 0
+
+#     with open(getFollowedShowsPath()) as f:
+#         rowsTotal = sum(1 for line in f)
+
+#     with open(getFollowedShowsPath(), newline='') as csvfile:
+#         # Create the CSV reader, which will break up the fields using the delimiter ','
+#         showsReader = csv.reader(csvfile, delimiter=',')
+
+#         # Loop through each line/record of the CSV file
+#         for row in showsReader:
+#             try:
+#                 # Increment the row count
+#                 rowsCount += 1
+#                 # Get the TV Show name
+#                 tvShowName = row[10]
+#                 # Search Trakt for the TV show matching TV Time's title value
+#                 traktShowObj = getShowByName(tvShowName, 0, 0)
+#                 # If no show was found, then skip the row
+#                 if traktShowObj == None:
+#                     continue
+#                 # Show progress on screen
+#                 print(
+#                     f"({rowsCount}/{rowsTotal}) Removing '{tvShowName}' from Collection & Library in Trakt")
+
+#                 # Hide the show
+#                 traktShowObj.remove_from_collection()
+#                 time.sleep(1)
+#                 traktShowObj.remove_from_library()
+#                 time.sleep(1)
+
+#             # Catch a cancel request CTRL+C
+#             except KeyboardInterrupt:
+#                 sys.exit("Cancel requested...")
+#              # Catch any errors which are raised because a show could not be found in Trakt
+#             except trakt.errors.NotFoundException:
+#                 print(
+#                     f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} does not exist (search) in Trakt!")
+#                 break
+
+
 def start():
     # Create the initial authentication with Trakt, before starting the process
     if initTraktAuth():
-        # Invoke the method which will import episodes which have been watched
-        # from TV Time into Trakt
-        processWatchedShows()
+        # Display a menu selection
+        print(f">> What do you want to do?")
+        print(f"    1) Import Watch History from TV Time")
+
+        while True:
+            try:
+                menuSelection = int(input(f"Enter your menu selection: "))
+                break
+            except ValueError:
+                print("Invalid input. Please enter a numerical number.")
+        # Start the process which is required
+        if menuSelection == 1:
+            # Invoke the method which will import episodes which have been watched
+            # from TV Time into Trakt
+            processWatchedShows()
+        else:
+            print("Sorry - that's an unknown menu selection")
     else:
         print("ERROR: Unable to complete authentication to Trakt - please try again.")
 
