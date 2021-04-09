@@ -1,9 +1,7 @@
 # TV Time to Trakt (Import Script)
-A quick Python script to import TV Time tracked episode data into Trakt.TV - using data provided by Whip Media Company via a GDPR request.
-
 ![](https://loch.digital/image_for_external_apps/4342799-01.png)
 
-<a href='https://www.freepik.com/vectors/city'>City vector created by freepik - www.freepik.com</a>
+A quick Python script to import TV Time tracked episode data into Trakt.TV - using data provided by Whip Media Company via a GDPR request.
 
 # Issues
 They'll be a few! If you come across anything then let me know in the 'Issue' section, and I'll provide help where possible.
@@ -49,3 +47,6 @@ Create a new file named `config.json` in the same directory of `TimeToTrakt.py`,
 ```
 
 Then, execute the program using `./python3 TimeToTrakt.py` - make sure to pop back during a long import to provide the correct Trakt TV Show selections.
+
+##### Credit
+<a href='https://www.freepik.com/vectors/city'>City vector created by freepik - www.freepik.com</a>
