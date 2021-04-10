@@ -420,51 +420,6 @@ def processWatchedShows():
                         f"({rowsCount}/{rowsTotal}) Skipping '{tvShowName}' Season {tvShowSeasonNo} Episode {tvShowEpisodeNo}. It's already been imported.")
 
 
-# def processMaintainRecords():
-#     # Total amount of rows which have been processed in the CSV file
-#     rowsCount = 0
-#     # Total amount of rows in the CSV file
-#     rowsTotal = 0
-
-#     with open(getFollowedShowsPath()) as f:
-#         rowsTotal = sum(1 for line in f)
-
-#     with open(getFollowedShowsPath(), newline='') as csvfile:
-#         # Create the CSV reader, which will break up the fields using the delimiter ','
-#         showsReader = csv.reader(csvfile, delimiter=',')
-
-#         # Loop through each line/record of the CSV file
-#         for row in showsReader:
-#             try:
-#                 # Increment the row count
-#                 rowsCount += 1
-#                 # Get the TV Show name
-#                 tvShowName = row[10]
-#                 # Search Trakt for the TV show matching TV Time's title value
-#                 traktShowObj = getShowByName(tvShowName, 0, 0)
-#                 # If no show was found, then skip the row
-#                 if traktShowObj == None:
-#                     continue
-#                 # Show progress on screen
-#                 print(
-#                     f"({rowsCount}/{rowsTotal}) Removing '{tvShowName}' from Collection & Library in Trakt")
-
-#                 # Hide the show
-#                 traktShowObj.remove_from_collection()
-#                 time.sleep(1)
-#                 traktShowObj.remove_from_library()
-#                 time.sleep(1)
-
-#             # Catch a cancel request CTRL+C
-#             except KeyboardInterrupt:
-#                 sys.exit("Cancel requested...")
-#              # Catch any errors which are raised because a show could not be found in Trakt
-#             except trakt.errors.NotFoundException:
-#                 print(
-#                     f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} does not exist (search) in Trakt!")
-#                 break
-
-
 def start():
     # Create the initial authentication with Trakt, before starting the process
     if initTraktAuth():
