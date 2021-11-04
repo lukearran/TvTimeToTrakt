@@ -314,7 +314,7 @@ def processWatchedShows():
             # records during the import process.
             rowsCount += 1
             # Get the name of the TV show
-            tvShowName = row[4]
+            tvShowName = row[6]
 
             # Ignore the header row
             if tvShowName != "tv_show_name":
