@@ -325,7 +325,7 @@ def processWatchedShows():
                 # Get the TV Time Episode Number
                 tvShowEpisodeNo = row[8]
                 # Get the date which the show was marked 'watched' in TV Time
-                tvShowDateWatched = row[5]
+                tvShowDateWatched = row[4]
                 # Parse the watched date value into a Python type
                 tvShowDateWatchedConverted = datetime.strptime(
                     tvShowDateWatched, '%Y-%m-%d %H:%M:%S')
