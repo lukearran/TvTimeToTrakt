@@ -1,11 +1,9 @@
 # main.py
 from logging import error
 import sys
-from trakt import init
-from trakt.movies import get_recommended_movies
+from trakt import *
 import trakt.core
 import os
-from trakt.tv import TVShow
 import csv
 from datetime import datetime
 import time
@@ -13,6 +11,8 @@ from tinydb import TinyDB, Query
 import json
 import re
 import sys
+
+from trakt.tv import TVShow
 
 # Adjust this value to increase/decrease your requests between episodes.
 # Make sure it's above 1 seconds to remain within the rate limit.
@@ -314,18 +314,18 @@ def processWatchedShows():
             # records during the import process.
             rowsCount += 1
             # Get the name of the TV show
-            tvShowName = row[6]
+            tvShowName = row[8]
 
             # Ignore the header row
             if tvShowName != "tv_show_name":
                 # Get the TV Time Episode Id
-                tvShowEpisodeId = row[1]
+                tvShowEpisodeId = row[4]
                 # Get the TV Time Season Number
-                tvShowSeasonNo = row[7]
+                tvShowSeasonNo = row[5]
                 # Get the TV Time Episode Number
-                tvShowEpisodeNo = row[8]
+                tvShowEpisodeNo = row[6]
                 # Get the date which the show was marked 'watched' in TV Time
-                tvShowDateWatched = row[4]
+                tvShowDateWatched = row[7]
                 # Parse the watched date value into a Python type
                 tvShowDateWatchedConverted = datetime.strptime(
                     tvShowDateWatched, '%Y-%m-%d %H:%M:%S')
