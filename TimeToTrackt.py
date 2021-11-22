@@ -317,7 +317,7 @@ def processWatchedShows():
             tvShowName = row[8]
 
             # Ignore the header row
-            if tvShowName != "tv_show_name":
+            if rowsCount > 1:
                 # Get the TV Time Episode Id
                 tvShowEpisodeId = row[4]
                 # Get the TV Time Season Number
