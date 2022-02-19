@@ -2,19 +2,27 @@
 import csv
 import json
 import os
+import logging
 import re
 import sys
 import time
 from datetime import datetime
 
 import trakt.core
+from trakt import init
 from tinydb import Query, TinyDB
-from trakt import Expando
 from trakt.tv import TVShow
 
+# Setup logger
+logging.basicConfig(
+    format='%(asctime)s %(levelname)s :: %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 # Adjust this value to increase/decrease your requests between episodes.
-# Make sure it's above 1 seconds to remain within the rate limit.
-DELAY_BETWEEN_EPISODES_IN_SECONDS = 5
+# Make to remain within the rate limit: https://trakt.docs.apiary.io/#introduction/rate-limiting
+DELAY_BETWEEN_EPISODES_IN_SECONDS = 0.75
 
 # Create a database to keep track of completed processes
 database = TinyDB("localStorage.json")
@@ -239,7 +247,7 @@ def getShowByName(name, seasonNo, episodeNo):
                     sys.exit("Cancel requested...")
                 # Otherwise, the user has entered an invalid value, warn the user to try again
                 except:
-                    print(
+                    logging.error(
                         f"Sorry! Please select a value between 0 to {len(showsWithSameName)}"
                     )
 
@@ -332,7 +340,6 @@ def processWatchedShows():
             # Get the date which the show was marked 'watched' in TV Time
             tvShowDateWatched = row["updated_at"]
             # Parse the watched date value into a Python type
-            print(tvShowDateWatched)
             tvShowDateWatchedConverted = datetime.strptime(
                 tvShowDateWatched, "%Y-%m-%d %H:%M:%S"
             )
@@ -353,7 +360,7 @@ def processWatchedShows():
                     # If more than 10 errors occurred in one streak, whilst trying to import the episode
                     # then give up, and move onto the next episode, but warn the user.
                     if errorStreak > 10:
-                        print(
+                        logging.warning(
                             f"WARNING: An error occurred 10 times in a row... skipping episode..."
                         )
                         break
@@ -371,8 +378,8 @@ def processWatchedShows():
                         if traktShowObj == None:
                             break
                         # Show the progress of the import on-screen
-                        print(
-                            f"({rowsCount+1}/{rowsTotal}) Processing Show {tvShowName} on Season {tvShowSeasonNo} - Episode {tvShowEpisodeNo}"
+                        logging.info(
+                            f"({rowsCount+1}/{rowsTotal}) Processing - '{tvShowName}' Season {tvShowSeasonNo} / Episode {tvShowEpisodeNo}"
                         )
                         # Get the season from the Trakt API
                         season = traktShowObj.seasons[
@@ -392,19 +399,19 @@ def processWatchedShows():
                     # an incorrect Trakt show has been selected, with season/episodes which don't match TV Time.
                     # It can also occur due to a bug in Trakt Py, whereby some seasons contain an empty array of episodes.
                     except IndexError:
-                        print(
+                        logging.warning(
                             f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist (season/episode index) in Trakt!"
                         )
                         break
                     # Catch any errors which are raised because a show could not be found in Trakt
                     except trakt.errors.NotFoundException:
-                        print(
+                        logging.warning(
                             f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist (search) in Trakt!"
                         )
                         break
                     # Catch errors because of the program breaching the Trakt API rate limit
                     except trakt.errors.RateLimitException:
-                        print(
+                        logging.warning(
                             "WARNING: The program is running too quickly and has hit Trakt's API rate limit! Please increase the delay between "
                             + "episdoes via the variable 'DELAY_BETWEEN_EPISODES_IN_SECONDS'. The program will now wait 60 seconds before "
                             + "trying again."
@@ -415,7 +422,7 @@ def processWatchedShows():
                         errorStreak += 1
                     # Catch a JSON decode error - this can be raised when the API server is down and produces a HTML page, instead of JSON
                     except json.decoder.JSONDecodeError:
-                        print(
+                        logging.warning(
                             f"({rowsCount}/{rowsTotal}) WARNING: A JSON decode error occuring whilst processing {tvShowName} "
                             + f"Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo}! This might occur when the server is down and has produced "
                             + "a HTML document instead of JSON. The script will wait 60 seconds before trying again."
@@ -431,8 +438,8 @@ def processWatchedShows():
                         sys.exit("Cancel requested...")
             # Skip the episode
             else:
-                print(
-                    f"({rowsCount}/{rowsTotal}) Skipping '{tvShowName}' Season {tvShowSeasonNo} Episode {tvShowEpisodeNo}. It's already been imported."
+                logging.info(
+                    f"({rowsCount}/{rowsTotal}) Already imported, skipping - '{tvShowName}' Season {tvShowSeasonNo} / Episode {tvShowEpisodeNo}."
                 )
 
 
@@ -449,16 +456,16 @@ def start():
                 menuSelection = 1 if not menuSelection else int(menuSelection)
                 break
             except ValueError:
-                print("Invalid input. Please enter a numerical number.")
+                logging.warning("Invalid input. Please enter a numerical number.")
         # Start the process which is required
         if menuSelection == 1:
             # Invoke the method which will import episodes which have been watched
             # from TV Time into Trakt
             processWatchedShows()
         else:
-            print("Sorry - that's an unknown menu selection")
+            logging.warning("Sorry - that's an unknown menu selection")
     else:
-        print("ERROR: Unable to complete authentication to Trakt - please try again.")
+        logging.error("ERROR: Unable to complete authentication to Trakt - please try again.")
 
 
 if __name__ == "__main__":
@@ -468,12 +475,12 @@ if __name__ == "__main__":
         if os.path.isdir(config.GDPR_WORKSPACE_PATH):
             start()
         else:
-            print(
+            logging.error(
                 "Oops! The TV Time GDPR folder '"
                 + config.GDPR_WORKSPACE_PATH
                 + "' does not exist on the local system. Please check it, and try again."
             )
     else:
-        print(
-            f"ERROR: The 'config.json' file cannot be found - have you created it yet?"
+        logging.error(
+            f"The 'config.json' file cannot be found - have you created it yet?"
         )
