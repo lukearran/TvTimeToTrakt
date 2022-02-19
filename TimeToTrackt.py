@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
 import csv
 import json
-import os
 import logging
+import os
 import re
 import sys
 import time
 from datetime import datetime
+from pathlib import Path
 
 import trakt.core
-from trakt import init
 from tinydb import Query, TinyDB
+from trakt import init
 from trakt.tv import TVShow
 
 # Setup logger
 logging.basicConfig(
-    format='%(asctime)s %(levelname)s :: %(message)s',
+    format="%(asctime)s [%(levelname)7s] :: %(message)s",
     level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 # Adjust this value to increase/decrease your requests between episodes.
@@ -32,6 +33,17 @@ userMatchedShowsTable = database.table("TvTimeTraktUserMatched")
 
 class Expando(object):
     pass
+
+
+def isAuthenticated():
+    with open(f"{Path.home()}/.pytrakt.json") as f:
+        data = json.load(f)
+        daysBeforeExpiration = (
+            datetime.fromtimestamp(data["OAUTH_EXPIRES_AT"]) - datetime.now()
+        ).days
+        if daysBeforeExpiration < 1:
+            return False
+        return True
 
 
 def getConfiguration():
@@ -64,7 +76,8 @@ def getFollowedShowsPath():
 
 
 def initTraktAuth():
-    return True
+    if isAuthenticated():
+        return True
     # Set the method of authentication
     trakt.core.AUTH_METHOD = trakt.core.OAUTH_AUTH
     return init(
@@ -93,7 +106,7 @@ def getYearFromTitle(title):
         ex.titleWithoutYear = titleValue
         ex.yearValue = int(yearValue)
         return ex
-    except:
+    except Exception:
         # If the above failed, then the title doesn't include a year
         # so return the object as is.
         ex.titleWithoutYear = title
@@ -160,7 +173,7 @@ def getShowByName(name, seasonNo, episodeNo):
         if checkTitleNameMatch(name, show.title):
             # If the title included the year of broadcast, then we can be more picky in the results
             # to look for a show with a broadcast year that matches
-            if doesTitleIncludeYear == True:
+            if doesTitleIncludeYear:
                 # If the show title is a 1:1 match, with the same broadcast year, then bingo!
                 if (name == show.title) and (show.year == titleObj.yearValue):
                     # Clear previous results, and only use this one
@@ -206,7 +219,7 @@ def getShowByName(name, seasonNo, episodeNo):
             skipShow = firstMatch.get("SkipShow")
             # If the user did not skip, but provided an index selection, get the
             # matching show
-            if skipShow == False:
+            if not skipShow:
                 return showsWithSameName[firstMatchSelectedIndex]
             # Otherwise, return None, which will trigger the script to skip
             # and move onto the next show
@@ -231,7 +244,7 @@ def getShowByName(name, seasonNo, episodeNo):
                 try:
                     # Get the user's selection, either a numerical input, or a string 'SKIP' value
                     indexSelected = input(
-                        f"Please make a selection from above (or enter SKIP):"
+                        "Please make a selection from above (or enter SKIP):"
                     )
 
                     if indexSelected != "SKIP":
@@ -246,7 +259,7 @@ def getShowByName(name, seasonNo, episodeNo):
                 except KeyboardInterrupt:
                     sys.exit("Cancel requested...")
                 # Otherwise, the user has entered an invalid value, warn the user to try again
-                except:
+                except Exception:
                     logging.error(
                         f"Sorry! Please select a value between 0 to {len(showsWithSameName)}"
                     )
@@ -361,7 +374,7 @@ def processWatchedShows():
                     # then give up, and move onto the next episode, but warn the user.
                     if errorStreak > 10:
                         logging.warning(
-                            f"WARNING: An error occurred 10 times in a row... skipping episode..."
+                            "An error occurred 10 times in a row... skipping episode..."
                         )
                         break
                     try:
@@ -375,11 +388,11 @@ def processWatchedShows():
                         )
                         # If the method returned 'None', then this is an indication to skip the episode, and
                         # move onto the next one
-                        if traktShowObj == None:
+                        if traktShowObj is None:
                             break
                         # Show the progress of the import on-screen
                         logging.info(
-                            f"({rowsCount+1}/{rowsTotal}) Processing - '{tvShowName}' Season {tvShowSeasonNo} / Episode {tvShowEpisodeNo}"
+                            f"({rowsCount+1}/{rowsTotal}) - Processing '{tvShowName}' Season {tvShowSeasonNo} / Episode {tvShowEpisodeNo}"
                         )
                         # Get the season from the Trakt API
                         season = traktShowObj.seasons[
@@ -399,21 +412,23 @@ def processWatchedShows():
                     # an incorrect Trakt show has been selected, with season/episodes which don't match TV Time.
                     # It can also occur due to a bug in Trakt Py, whereby some seasons contain an empty array of episodes.
                     except IndexError:
-                        tvShowSlug = traktShowObj.to_json()['shows'][0]['ids']['ids']['slug']
+                        tvShowSlug = traktShowObj.to_json()["shows"][0]["ids"]["ids"][
+                            "slug"
+                        ]
                         logging.warning(
-                            f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist in Trakt! (https://trakt.tv/shows/{tvShowSlug}/seasons/{tvShowSeasonNo}/episodes/{tvShowEpisodeNo})"
+                            f"({rowsCount}/{rowsTotal}) - {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist in Trakt! (https://trakt.tv/shows/{tvShowSlug}/seasons/{tvShowSeasonNo}/episodes/{tvShowEpisodeNo})"
                         )
                         break
                     # Catch any errors which are raised because a show could not be found in Trakt
                     except trakt.errors.NotFoundException:
                         logging.warning(
-                            f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist (search) in Trakt!"
+                            f"({rowsCount}/{rowsTotal}) - {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist (search) in Trakt!"
                         )
                         break
                     # Catch errors because of the program breaching the Trakt API rate limit
                     except trakt.errors.RateLimitException:
                         logging.warning(
-                            "WARNING: The program is running too quickly and has hit Trakt's API rate limit! Please increase the delay between "
+                            "The program is running too quickly and has hit Trakt's API rate limit! Please increase the delay between "
                             + "episdoes via the variable 'DELAY_BETWEEN_EPISODES_IN_SECONDS'. The program will now wait 60 seconds before "
                             + "trying again."
                         )
@@ -424,7 +439,7 @@ def processWatchedShows():
                     # Catch a JSON decode error - this can be raised when the API server is down and produces a HTML page, instead of JSON
                     except json.decoder.JSONDecodeError:
                         logging.warning(
-                            f"({rowsCount}/{rowsTotal}) WARNING: A JSON decode error occuring whilst processing {tvShowName} "
+                            f"({rowsCount}/{rowsTotal}) - A JSON decode error occuring whilst processing {tvShowName} "
                             + f"Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo}! This might occur when the server is down and has produced "
                             + "a HTML document instead of JSON. The script will wait 60 seconds before trying again."
                         )
@@ -440,7 +455,7 @@ def processWatchedShows():
             # Skip the episode
             else:
                 logging.info(
-                    f"({rowsCount}/{rowsTotal}) Already imported, skipping - '{tvShowName}' Season {tvShowSeasonNo} / Episode {tvShowEpisodeNo}."
+                    f"({rowsCount}/{rowsTotal}) - Already imported, skipping '{tvShowName}' Season {tvShowSeasonNo} / Episode {tvShowEpisodeNo}."
                 )
 
 
@@ -448,12 +463,12 @@ def start():
     # Create the initial authentication with Trakt, before starting the process
     if initTraktAuth():
         # Display a menu selection
-        print(f">> What do you want to do?")
-        print(f"    1) Import Watch History from TV Time")
+        print(">> What do you want to do?")
+        print("    1) Import Watch History from TV Time")
 
         while True:
             try:
-                menuSelection = input(f"Enter your menu selection: ")
+                menuSelection = input("Enter your menu selection: ")
                 menuSelection = 1 if not menuSelection else int(menuSelection)
                 break
             except ValueError:
@@ -466,7 +481,9 @@ def start():
         else:
             logging.warning("Sorry - that's an unknown menu selection")
     else:
-        logging.error("ERROR: Unable to complete authentication to Trakt - please try again.")
+        logging.error(
+            "ERROR: Unable to complete authentication to Trakt - please try again."
+        )
 
 
 if __name__ == "__main__":
@@ -483,5 +500,5 @@ if __name__ == "__main__":
             )
     else:
         logging.error(
-            f"The 'config.json' file cannot be found - have you created it yet?"
+            "The 'config.json' file cannot be found - have you created it yet?"
         )
