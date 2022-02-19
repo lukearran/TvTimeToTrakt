@@ -23,7 +23,7 @@ logging.basicConfig(
 
 # Adjust this value to increase/decrease your requests between episodes.
 # Make to remain within the rate limit: https://trakt.docs.apiary.io/#introduction/rate-limiting
-DELAY_BETWEEN_EPISODES_IN_SECONDS = 0.75
+DELAY_BETWEEN_EPISODES_IN_SECONDS = 1
 
 # Create a database to keep track of completed processes
 database = TinyDB("localStorage.json")
