@@ -304,7 +304,7 @@ def parseSeasonNo(seasonNo, traktShowObj):
     # Otherwise, if the Trakt seasons start with no specials, then return the seasonNo,
     # but subtracted by one (e.g Season 1 in TV Time, will be 0)
     else:
-        # Only subtract is the TV Time season number is greater than 0.
+        # Only subtract if the TV Time season number is greater than 0.
         if seasonNo != 0:
             return seasonNo - 1
         # Otherwise, the TV Time season is a special! Then you don't need to change the starting position
@@ -399,8 +399,9 @@ def processWatchedShows():
                     # an incorrect Trakt show has been selected, with season/episodes which don't match TV Time.
                     # It can also occur due to a bug in Trakt Py, whereby some seasons contain an empty array of episodes.
                     except IndexError:
+                        tvShowSlug = traktShowObj.to_json()['shows'][0]['ids']['ids']['slug']
                         logging.warning(
-                            f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist (season/episode index) in Trakt!"
+                            f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist in Trakt! (https://trakt.tv/shows/{tvShowSlug}/seasons/{tvShowSeasonNo}/episodes/{tvShowEpisodeNo})"
                         )
                         break
                     # Catch any errors which are raised because a show could not be found in Trakt
