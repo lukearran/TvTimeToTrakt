@@ -1,17 +1,15 @@
-# main.py
-from logging import error
-import sys
-from trakt import *
-import trakt.core
-import os
+#!/usr/bin/env python3
 import csv
-from datetime import datetime
-import time
-from tinydb import TinyDB, Query
 import json
+import os
 import re
 import sys
+import time
+from datetime import datetime
 
+import trakt.core
+from tinydb import Query, TinyDB
+from trakt import Expando
 from trakt.tv import TVShow
 
 # Adjust this value to increase/decrease your requests between episodes.
@@ -58,6 +56,7 @@ def getFollowedShowsPath():
 
 
 def initTraktAuth():
+    return True
     # Set the method of authentication
     trakt.core.AUTH_METHOD = trakt.core.OAUTH_AUTH
     return init(config.TRAKT_USERNAME, store=True, client_id=config.CLIENT_ID, client_secret=config.CLIENT_SECRET)
@@ -291,133 +290,122 @@ def processWatchedShows():
     # Total amount of rows which have been processed in the CSV file
     rowsCount = 0
     # Total amount of rows in the CSV file
-    rowsTotal = 0
-    # Total amount of errors which have occurred in one streak
     errorStreak = 0
-
-    # Get the total amount of rows in the CSV file,
-    # which is helpful for keeping track of progress.
-    # However, if you have a VERY large CSV file (e.g above 100,000 rows)
-    # then it might be a good idea to remove this due to the performance
-    # overhead.
-    with open(getWatchedShowsPath()) as f:
-        rowsTotal = sum(1 for line in f)
-
     # Open the CSV file within the GDPR exported data
     with open(getWatchedShowsPath(), newline='') as csvfile:
         # Create the CSV reader, which will break up the fields using the delimiter ','
-        showsReader = csv.reader(csvfile, delimiter=',')
-
+        showsReader = csv.DictReader(csvfile, delimiter=',')
+        # Get the total amount of rows in the CSV file,
+        rowsTotal = len(list(showsReader))
+        # Move position to the beginning of the file
+        csvfile.seek(0, 0)
         # Loop through each line/record of the CSV file
-        for row in showsReader:
-            # Increment the row counter to keep track of progress completing the
-            # records during the import process.
-            rowsCount += 1
+        # Ignore the header row
+        next(showsReader, None)
+        for rowsCount, row in enumerate(showsReader):
             # Get the name of the TV show
-            tvShowName = row[8]
+            tvShowName = row["tv_show_name"]
+            # Get the TV Time Episode Id
+            tvShowEpisodeId = row["episode_id"]
+            # Get the TV Time Season Number
+            tvShowSeasonNo = row["episode_season_number"]
+            # Get the TV Time Episode Number
+            tvShowEpisodeNo = row["episode_number"]
+            # Get the date which the show was marked 'watched' in TV Time
+            tvShowDateWatched = row["updated_at"]
+            # Parse the watched date value into a Python type
+            print(tvShowDateWatched)
+            tvShowDateWatchedConverted = datetime.strptime(
+                tvShowDateWatched, '%Y-%m-%d %H:%M:%S')
 
-            # Ignore the header row
-            if rowsCount > 1:
-                # Get the TV Time Episode Id
-                tvShowEpisodeId = row[4]
-                # Get the TV Time Season Number
-                tvShowSeasonNo = row[5]
-                # Get the TV Time Episode Number
-                tvShowEpisodeNo = row[6]
-                # Get the date which the show was marked 'watched' in TV Time
-                tvShowDateWatched = row[7]
-                # Parse the watched date value into a Python type
-                tvShowDateWatchedConverted = datetime.strptime(
-                    tvShowDateWatched, '%Y-%m-%d %H:%M:%S')
+            # Query the local database for previous entries indicating that
+            # the episode has already been imported in the past. Which will
+            # ease pressure on TV Time's API server during a retry of the import
+            # process, and just save time overall without needing to create network requests
+            episodeCompletedQuery = Query()
+            queryResult = syncedEpisodesTable.search(
+                episodeCompletedQuery.episodeId == tvShowEpisodeId)
 
-                # Query the local database for previous entries indicating that
-                # the episode has already been imported in the past. Which will
-                # ease pressure on TV Time's API server during a retry of the import
-                # process, and just save time overall without needing to create network requests
-                episodeCompletedQuery = Query()
-                queryResult = syncedEpisodesTable.search(
-                    episodeCompletedQuery.episodeId == tvShowEpisodeId)
-
-                # If the query returned no results, then continue to import it into Trakt
-                if len(queryResult) == 0:
-                    # Create a repeating loop, which will break on success, but repeats on failures
-                    while True:
-                        # If more than 10 errors occurred in one streak, whilst trying to import the episode
-                        # then give up, and move onto the next episode, but warn the user.
-                        if (errorStreak > 10):
-                            print(
-                                f"WARNING: An error occurred 10 times in a row... skipping episode...")
+            # If the query returned no results, then continue to import it into Trakt
+            if len(queryResult) == 0:
+                # Create a repeating loop, which will break on success, but repeats on failures
+                while True:
+                    # If more than 10 errors occurred in one streak, whilst trying to import the episode
+                    # then give up, and move onto the next episode, but warn the user.
+                    if (errorStreak > 10):
+                        print(
+                            f"WARNING: An error occurred 10 times in a row... skipping episode...")
+                        break
+                    try:
+                        # Sleep for a second between each process, before going onto the next watched episode.
+                        # This is required to remain within the API rate limit, and use the API server fairly.
+                        # Other developers share the service, for free - so be considerate of your usage.
+                        time.sleep(DELAY_BETWEEN_EPISODES_IN_SECONDS)
+                        # Search Trakt for the TV show matching TV Time's title value
+                        traktShowObj = getShowByName(
+                            tvShowName, tvShowSeasonNo, tvShowEpisodeNo)
+                        # If the method returned 'None', then this is an indication to skip the episode, and
+                        # move onto the next one
+                        if traktShowObj == None:
                             break
-                        try:
-                            # Sleep for a second between each process, before going onto the next watched episode.
-                            # This is required to remain within the API rate limit, and use the API server fairly.
-                            # Other developers share the service, for free - so be considerate of your usage.
-                            time.sleep(DELAY_BETWEEN_EPISODES_IN_SECONDS)
-                            # Search Trakt for the TV show matching TV Time's title value
-                            traktShowObj = getShowByName(
-                                tvShowName, tvShowSeasonNo, tvShowEpisodeNo)
-                            # If the method returned 'None', then this is an indication to skip the episode, and
-                            # move onto the next one
-                            if traktShowObj == None:
-                                break
-                            # Show the progress of the import on-screen
-                            print(
-                                f"({rowsCount}/{rowsTotal}) Processing Show {tvShowName} on Season {tvShowSeasonNo} - Episode {tvShowEpisodeNo}")
-                            # Get the season from the Trakt API
-                            season = traktShowObj.seasons[parseSeasonNo(
-                                tvShowSeasonNo, traktShowObj)]
-                            # Get the episode from the season
-                            episode = season.episodes[int(tvShowEpisodeNo) - 1]
-                            # Mark the episode as watched!
-                            episode.mark_as_seen(tvShowDateWatchedConverted)
-                            # Add the episode to the local database as imported, so it can be skipped,
-                            # if the process is repeated
-                            syncedEpisodesTable.insert(
-                                {'episodeId': tvShowEpisodeId})
-                            # Clear the error streak on completing the method without errors
-                            errorStreak = 0
-                            break
-                        # Catch errors which occur because of an incorrect array index. This occurs when
-                        # an incorrect Trakt show has been selected, with season/episodes which don't match TV Time.
-                        # It can also occur due to a bug in Trakt Py, whereby some seasons contain an empty array of episodes.
-                        except IndexError:
-                            print(
-                                f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist (season/episode index) in Trakt!")
-                            break
-                        # Catch any errors which are raised because a show could not be found in Trakt
-                        except trakt.errors.NotFoundException:
-                            print(
-                                f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist (search) in Trakt!")
-                            break
-                        # Catch errors because of the program breaching the Trakt API rate limit
-                        except trakt.errors.RateLimitException:
-                            print(
-                                "WARNING: The program is running too quickly and has hit Trakt's API rate limit! Please increase the delay between " +
-                                "episdoes via the variable 'DELAY_BETWEEN_EPISODES_IN_SECONDS'. The program will now wait 60 seconds before " +
-                                "trying again.")
-                            time.sleep(60)
+                        # Show the progress of the import on-screen
+                        print(
+                            f"({rowsCount}/{rowsTotal}) Processing Show {tvShowName} on Season {tvShowSeasonNo} - Episode {tvShowEpisodeNo}")
+                        # Get the season from the Trakt API
+                        season = traktShowObj.seasons[parseSeasonNo(
+                            tvShowSeasonNo, traktShowObj)]
+                        # Get the episode from the season
+                        episode = season.episodes[int(tvShowEpisodeNo) - 1]
+                        # Mark the episode as watched!
+                        episode.mark_as_seen(tvShowDateWatchedConverted)
+                        # Add the episode to the local database as imported, so it can be skipped,
+                        # if the process is repeated
+                        syncedEpisodesTable.insert(
+                            {'episodeId': tvShowEpisodeId})
+                        # Clear the error streak on completing the method without errors
+                        errorStreak = 0
+                        break
+                    # Catch errors which occur because of an incorrect array index. This occurs when
+                    # an incorrect Trakt show has been selected, with season/episodes which don't match TV Time.
+                    # It can also occur due to a bug in Trakt Py, whereby some seasons contain an empty array of episodes.
+                    except IndexError:
+                        print(
+                            f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist (season/episode index) in Trakt!")
+                        break
+                    # Catch any errors which are raised because a show could not be found in Trakt
+                    except trakt.errors.NotFoundException:
+                        print(
+                            f"({rowsCount}/{rowsTotal}) WARNING: {tvShowName} Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo} does not exist (search) in Trakt!")
+                        break
+                    # Catch errors because of the program breaching the Trakt API rate limit
+                    except trakt.errors.RateLimitException:
+                        print(
+                            "WARNING: The program is running too quickly and has hit Trakt's API rate limit! Please increase the delay between " +
+                            "episdoes via the variable 'DELAY_BETWEEN_EPISODES_IN_SECONDS'. The program will now wait 60 seconds before " +
+                            "trying again.")
+                        time.sleep(60)
 
-                            # Mark the exception in the error streak
-                            errorStreak += 1
-                        # Catch a JSON decode error - this can be raised when the API server is down and produces a HTML page, instead of JSON
-                        except json.decoder.JSONDecodeError:
-                            print(
-                                f"({rowsCount}/{rowsTotal}) WARNING: A JSON decode error occuring whilst processing {tvShowName} " +
-                                f"Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo}! This might occur when the server is down and has produced " +
-                                "a HTML document instead of JSON. The script will wait 60 seconds before trying again.")
+                        # Mark the exception in the error streak
+                        errorStreak += 1
+                    # Catch a JSON decode error - this can be raised when the API server is down and produces a HTML page, instead of JSON
+                    except json.decoder.JSONDecodeError:
+                        print(
+                            f"({rowsCount}/{rowsTotal}) WARNING: A JSON decode error occuring whilst processing {tvShowName} " +
+                            f"Season {tvShowSeasonNo}, Episode {tvShowEpisodeNo}! This might occur when the server is down and has produced " +
+                            "a HTML document instead of JSON. The script will wait 60 seconds before trying again.")
 
-                            # Wait 60 seconds
-                            time.sleep(60)
+                        # Wait 60 seconds
+                        time.sleep(60)
 
-                            # Mark the exception in the error streak
-                            errorStreak += 1
-                        # Catch a CTRL + C keyboard input, and exits the program
-                        except KeyboardInterrupt:
-                            sys.exit("Cancel requested...")
-                # Skip the episode
-                else:
-                    print(
-                        f"({rowsCount}/{rowsTotal}) Skipping '{tvShowName}' Season {tvShowSeasonNo} Episode {tvShowEpisodeNo}. It's already been imported.")
+                        # Mark the exception in the error streak
+                        errorStreak += 1
+                    # Catch a CTRL + C keyboard input, and exits the program
+                    except KeyboardInterrupt:
+                        sys.exit("Cancel requested...")
+            # Skip the episode
+            else:
+                print(
+                    f"({rowsCount}/{rowsTotal}) Skipping '{tvShowName}' Season {tvShowSeasonNo} Episode {tvShowEpisodeNo}. It's already been imported.")
 
 
 def start():
@@ -429,7 +417,8 @@ def start():
 
         while True:
             try:
-                menuSelection = int(input(f"Enter your menu selection: "))
+                menuSelection = input(f"Enter your menu selection: ")
+                menuSelection = 1 if not menuSelection else int(menuSelection)
                 break
             except ValueError:
                 print("Invalid input. Please enter a numerical number.")
