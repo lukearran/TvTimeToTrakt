@@ -36,7 +36,7 @@ class Expando(object):
 
 
 def isAuthenticated():
-    with open(f"{Path.home()}/.pytrakt.json") as f:
+    with open("pytrakt.json") as f:
         data = json.load(f)
         daysBeforeExpiration = (
             datetime.fromtimestamp(data["OAUTH_EXPIRES_AT"]) - datetime.now()
