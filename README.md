@@ -4,10 +4,6 @@
 
 A Python script to import TV Time tracked episode data into Trakt.TV - using data export provided by TV Time through a GDPR request.
 
-# Issues
-
-They'll be a few! This was quickly put together within a few hours or so for personal usage. If you come across anything then let me know in the 'Issue' section, and I'll provide support where possible.
-
 # Notes
 
 1. The script is using limited data provided from a GDPR request - so the accuracy isn't 100%. But you will be prompted to manually pick the Trakt show, when it can't be determined automatically.
