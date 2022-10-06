@@ -1,5 +1,6 @@
 watched_show_process_tracker.json
 localStorage.json
+localStorageMovies.json
 config.json
 TimeToTrackt.py
 seen_episode.csv
