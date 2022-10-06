@@ -110,7 +110,7 @@ def getYearFromTitle(title):
         return ex
 
 
-# Shows in TV Time are often different to Trakt.TV - in order to improve results and automation,
+# Movies in TV Time are often different to Trakt.TV - in order to improve results and automation,
 # calculate how many words are in the title, and return true if more than 50% of the title is a match,
 # It seems to improve automation, and reduce manual selection....
 
@@ -140,12 +140,12 @@ def checkTitleNameMatch(tvTimeTitle, traktTitle):
     return percentage > 50
 
 
-# Using TV Time data (Name of Show, Season No and Episode) - find the corresponding show
+# Using TV Time data (Name of Movie) - find the corresponding movie
 # in Trakt.TV either by automation, or asking the user to confirm.
 
 
 def getMovieByName(name):
-    # Parse the TV Show's name for year, if one is present in the string
+    # Parse the Movie's name for year, if one is present in the string
     titleObj = getYearFromTitle(name)
 
     # Create a boolean to indicate if the title contains a year,
@@ -160,7 +160,7 @@ def getMovieByName(name):
     # Request the Trakt API for search results, using the name
     movieSearch = Movie.search(name)
 
-    # Create an array of shows which have been matched
+    # Create an array of movies which have been matched
     moviesWithSameName = []
 
     # Go through each result from the search
@@ -168,16 +168,16 @@ def getMovieByName(name):
         # Check if the title is a match, based on our conditions (e.g over 50% of words match)
         if checkTitleNameMatch(name, movie.title):
             # If the title included the year of broadcast, then we can be more picky in the results
-            # to look for a show with a broadcast year that matches
+            # to look for a movie with a broadcast year that matches
             if doesTitleIncludeYear:
-                # If the show title is a 1:1 match, with the same broadcast year, then bingo!
+                # If the movie title is a 1:1 match, with the same broadcast year, then bingo!
                 if (name == movie.title) and (movie.year == titleObj.yearValue):
                     # Clear previous results, and only use this one
                     moviesWithSameName = []
                     moviesWithSameName.append(movie)
                     break
 
-                # Otherwise, only add the show if the broadcast year matches
+                # Otherwise, only add the movie if the broadcast year matches
                 if movie.year == titleObj.yearValue:
                     moviesWithSameName.append(movie)
             # If the program doesn't have the broadcast year, then add all the results
@@ -195,7 +195,7 @@ def getMovieByName(name):
     if len(completeMatchNames) == 1:
         moviesWithSameName = completeMatchNames
 
-    # If the search contains multiple results, then we need to confirm with the user which show
+    # If the search contains multiple results, then we need to confirm with the user which movie
     # the script should use, or access the local database to see if the user has already provided
     # a manual selection
     if len(moviesWithSameName) > 1:
@@ -212,14 +212,14 @@ def getMovieByName(name):
             firstMatch = queryResult[0]
             # Get the value contains the selection index
             firstMatchSelectedIndex = int(firstMatch.get("UserSelectedIndex"))
-            # Check if the user previously requested to skip the show
+            # Check if the user previously requested to skip the movie
             skipMovie = firstMatch.get("SkipMovie")
             # If the user did not skip, but provided an index selection, get the
-            # matching show
+            # matching movie
             if not skipMovie:
                 return moviesWithSameName[firstMatchSelectedIndex]
             # Otherwise, return None, which will trigger the script to skip
-            # and move onto the next show
+            # and move onto the next movie
             else:
                 return None
         # If the user has not provided a manual selection already in the process
@@ -229,9 +229,9 @@ def getMovieByName(name):
                 f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Movie '{name}' has {len(moviesWithSameName)} matching Trakt movies with the same name."
             )
 
-            # Output each show for manual selection
+            # Output each movie for manual selection
             for idx, item in enumerate(moviesWithSameName):
-                # Display the show's title, broadcast year, amount of seasons and a link to the Trakt page.
+                # Display the movie's title, broadcast year, amount of seasons and a link to the Trakt page.
                 # This will provide the user with enough information to make a selection.
                 print(
                     f"    ({idx + 1}) {item.title} - {item.year} - More Info: https://trakt.tv/{item.ext}"
@@ -264,7 +264,7 @@ def getMovieByName(name):
             # If the user entered 'SKIP', then exit from the loop with no selection, which
             # will trigger the program to move onto the next episode
             if indexSelected == "SKIP":
-                # Record that the user has skipped the TV Show for import, so that
+                # Record that the user has skipped the Movie for import, so that
                 # manual input isn't required everytime
                 userMatchedMoviesTable.insert(
                     {"movie_name": name, "UserSelectedIndex": 0, "SkipMovie": True}
@@ -279,7 +279,7 @@ def getMovieByName(name):
                     {
                         "movie_name": name,
                         "UserSelectedIndex": indexSelected,
-                        "SkipShow": False,
+                        "SkipMovie": False,
                     }
                 )
 
@@ -288,7 +288,7 @@ def getMovieByName(name):
     else:
         if len(moviesWithSameName) > 0:
             # If the search returned only one result, then awesome!
-            # Return the show, so the import automation can continue.
+            # Return the movie, so the import automation can continue.
             return moviesWithSameName[0]
         else:
             return None
@@ -321,7 +321,7 @@ def processMovies():
         for rowsCount, row in enumerate(movieReader):
             # Get the name of the Movie
             movieName = row["movie_name"]
-            # Get the date which the show was marked 'watched' in TV Time
+            # Get the date which the movie was marked 'watched' in TV Time
             activityType = row["type"]
             movieDateWatched = row["updated_at"]
             # Parse the watched date value into a Python type
@@ -364,7 +364,7 @@ def processMovies():
                         # This is required to remain within the API rate limit, and use the API server fairly.
                         # Other developers share the service, for free - so be considerate of your usage.
                         time.sleep(DELAY_BETWEEN_EPISODES_IN_SECONDS)
-                        # Search Trakt for the TV show matching TV Time's title value
+                        # Search Trakt for the Movie matching TV Time's title value
                         traktMovieObj = getMovieByName(movieName)
                         # If the method returned 'None', then this is an indication to skip the episode, and
                         # move onto the next one
@@ -395,7 +395,7 @@ def processMovies():
                         errorStreak = 0
                         break
                     # Catch errors which occur because of an incorrect array index. This occurs when
-                    # an incorrect Trakt show has been selected, with season/episodes which don't match TV Time.
+                    # an incorrect Trakt movie has been selected, with season/episodes which don't match TV Time.
                     # It can also occur due to a bug in Trakt Py, whereby some seasons contain an empty array of episodes.
                     except IndexError:
                         movieSlug = traktMovieObj.to_json()["movies"][0]["ids"]["ids"][
@@ -405,7 +405,7 @@ def processMovies():
                             f"({rowsCount}/{rowsTotal}) - {movieName} does not exist in Trakt! (https://trakt.tv/movies/{movieSlug}/)"
                         )
                         break
-                    # Catch any errors which are raised because a show could not be found in Trakt
+                    # Catch any errors which are raised because a movie could not be found in Trakt
                     except trakt.errors.NotFoundException:
                         logging.warning(
                             f"({rowsCount}/{rowsTotal}) - {movieName} does not exist (search) in Trakt!"
