@@ -1,7 +1,5 @@
 watched_show_process_tracker.json
-localStorage.json
-localStorageMovies.json
-config.json
+*.json
 TimeToTrackt.py
 seen_episode.csv
 followed_tv_show.csv
