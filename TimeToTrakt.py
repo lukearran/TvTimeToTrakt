@@ -778,32 +778,47 @@ def processMovies():
 
 
 def start():
+    # Display a menu selection
+    print(">> What do you want to do?")
+    print("    1) Import Watch History for TV Shows from TV Time")
+    print("    2) Import Watch Movies from TV Time")
+    print("    3) Do both 1 and 2")
+    print("    4) Exit")
+
+    while True:
+        try:
+            menuSelection = input("Enter your menu selection: ")
+            menuSelection = 3 if not menuSelection else int(menuSelection)
+            break
+        except ValueError:
+            logging.warning(
+                "Invalid input. Please enter a numerical number.")
+        # Check if the input is valid
+    if not 1 <= menuSelection <= 4:
+        logging.warning("Sorry - that's an unknown menu selection")
+        exit()
+    # Exit if the 4th option was chosen
+    if menuSelection == 4:
+        logging.info("Exiting as per user's selection.")
+        exit()
     # Create the initial authentication with Trakt, before starting the process
     if initTraktAuth():
-        # Display a menu selection
-        print(">> What do you want to do?")
-        print("    1) Import Watch History for TV Shows from TV Time")
-        print("    2) Import Watch Movies from TV Time")
-
-        while True:
-            try:
-                menuSelection = input("Enter your menu selection: ")
-                menuSelection = 1 if not menuSelection else int(menuSelection)
-                break
-            except ValueError:
-                logging.warning(
-                    "Invalid input. Please enter a numerical number.")
         # Start the process which is required
         if menuSelection == 1:
             # Invoke the method which will import episodes which have been watched
             # from TV Time into Trakt
+            logging.info("Processing watched shows.")
             processWatchedShows()
         elif menuSelection == 2:
             # Invoke the method which will import movies which have been watched
             # from TV Time into Trakt
+            logging.info("Processing movies.")
             processMovies()
-        else:
-            logging.warning("Sorry - that's an unknown menu selection")
+        elif menuSelection == 3:
+            # Invoke both the episodes and movies import methods
+            logging.info("Processing both watched shows and movies.")
+            processWatchedShows()
+            processMovies()
     else:
         logging.error(
             "ERROR: Unable to complete authentication to Trakt - please try again."
