@@ -27,12 +27,11 @@ logging.basicConfig(
 DELAY_BETWEEN_EPISODES_IN_SECONDS = 1
 
 # Create databases to keep track of completed processes
-databaseshows = TinyDB("localStorageShows.json")
-syncedEpisodesTable = databaseshows.table("SyncedEpisodes")
-userMatchedShowsTable = databaseshows.table("TvTimeTraktUserMatched")
-databasemovies = TinyDB("localStorageMovies.json")
-syncedMoviesTable = databasemovies.table("SyncedMovies")
-userMatchedMoviesTable = databasemovies.table("TvTimeTraktUserMatched")
+database = TinyDB("localStorage.json")
+syncedEpisodesTable = database.table("SyncedEpisodes")
+userMatchedShowsTable = database.table("TvTimeTraktUserMatched")
+syncedMoviesTable = database.table("SyncedMovies")
+userMatchedMoviesTable = database.table("TvTimeTraktUserMatchedMovies")
 
 
 class Expando(object):
