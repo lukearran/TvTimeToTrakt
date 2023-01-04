@@ -229,7 +229,7 @@ def getShowByName(name, seasonNo, episodeNo):
         # then prompt the user to make a selection
         else:
             print(
-                f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Show '{name}' (Season {seasonNo}, Episode {episodeNo}) has {len(showsWithSameName)} matching Trakt shows with the same name."
+                f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Show '{name}' (Season {seasonNo}, Episode {episodeNo}) has {len(showsWithSameName)} matching Trakt shows with the same name.\a"
             )
 
             # Output each show for manual selection
