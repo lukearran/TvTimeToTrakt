@@ -237,7 +237,7 @@ def getShowByName(name, seasonNo, episodeNo):
         # then prompt the user to make a selection
         else:
             print(
-                f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Show '{name}' (Season {seasonNo}, Episode {episodeNo}) has {len(showsWithSameName)} matching Trakt shows with the same name."
+                f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Show '{name}' (Season {seasonNo}, Episode {episodeNo}) has {len(showsWithSameName)} matching Trakt shows with the same name.\a"
             )
 
             # Output each show for manual selection
@@ -554,7 +554,7 @@ def getMovieByName(name):
         # then prompt the user to make a selection
         else:
             print(
-                f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Movie '{name}' has {len(moviesWithSameName)} matching Trakt movies with the same name."
+                f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Movie '{name}' has {len(moviesWithSameName)} matching Trakt movies with the same name.\a"
             )
 
             # Output each movie for manual selection
@@ -808,6 +808,7 @@ def start():
             # from TV Time into Trakt
             logging.info("Processing watched shows.")
             processWatchedShows()
+            # TODO: Add support for followed shows
         elif menuSelection == 2:
             # Invoke the method which will import movies which have been watched
             # from TV Time into Trakt
