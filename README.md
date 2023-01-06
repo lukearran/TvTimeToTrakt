@@ -8,7 +8,7 @@ A Python script to import TV Time tracked episode and movie data into Trakt.TV -
 
 1. The script is using limited data provided from a GDPR request - so the accuracy isn't 100%. But you will be prompted to manually pick the Trakt show/movie, when it can't be determined automatically.
 2. A delay of 1 second is added between each episode/movie to ensure fair use of Trakt's API server. You can adjust this for your own import, but make sure it's at least 0.75 second to remain within the rate limit: https://trakt.docs.apiary.io/#introduction/rate-limiting
-3. Episodes which have been processed will be saved to a TinyDB file `localStorage.json` - when you restart the script, the program will skip those episodes which have been marked 'imported'. The file for movies is `localStorageMovies.json`.
+3. Episodes which have been processed will be saved to a TinyDB file `localStorage.json` - when you restart the script, the program will skip those episodes which have been marked 'imported'. Processed movies are also stored in the same file.
 
 # Setup
 
