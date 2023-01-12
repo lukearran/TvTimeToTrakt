@@ -773,8 +773,7 @@ def process_movies():
                     f"({rows_count}/{rows_total}) - Already imported, skipping '{movie_name}'."
                 )
 
-
-def start():
+def menu_selection() -> int:
     # Display a menu selection
     print(">> What do you want to do?")
     print("    1) Import Watch History for TV Shows from TV Time")
@@ -784,34 +783,40 @@ def start():
 
     while True:
         try:
-            menu_selection = input("Enter your menu selection: ")
-            menu_selection = 3 if not menu_selection else int(menu_selection)
+            selection = input("Enter your menu selection: ")
+            selection = 3 if not selection else int(selection)
             break
         except ValueError:
             logging.warning("Invalid input. Please enter a numerical number.")
-        # Check if the input is valid
-    if not 1 <= menu_selection <= 4:
+    # Check if the input is valid
+    if not 1 <= selection <= 4:
         logging.warning("Sorry - that's an unknown menu selection")
         exit()
     # Exit if the 4th option was chosen
-    if menu_selection == 4:
+    if selection == 4:
         logging.info("Exiting as per user's selection.")
         exit()
+
+    return selection
+
+
+def start():
+    selection = menu_selection()
     # Create the initial authentication with Trakt, before starting the process
     if init_trakt_auth():
         # Start the process which is required
-        if menu_selection == 1:
+        if selection == 1:
             # Invoke the method which will import episodes which have been watched
             # from TV Time into Trakt
             logging.info("Processing watched shows.")
             process_watched_shows()
             # TODO: Add support for followed shows
-        elif menu_selection == 2:
+        elif selection == 2:
             # Invoke the method which will import movies which have been watched
             # from TV Time into Trakt
             logging.info("Processing movies.")
             process_movies()
-        elif menu_selection == 3:
+        elif selection == 3:
             # Invoke both the episodes and movies import methods
             logging.info("Processing both watched shows and movies.")
             process_watched_shows()
