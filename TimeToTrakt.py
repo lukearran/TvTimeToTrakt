@@ -527,7 +527,7 @@ def get_movie_by_name(name):
 
         # Query the local database for existing selection
         user_matched_query = Query()
-        query_result = userMatchedMoviesTable.search(user_matched_query.movie_name == name)
+        query_result = userMatchedMoviesTable.search(user_matched_query.MovieName == name)
 
         # If the local database already contains an entry for a manual selection
         # then don't bother prompting the user to select it again!
