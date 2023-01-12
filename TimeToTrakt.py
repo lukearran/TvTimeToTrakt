@@ -8,6 +8,7 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 import trakt.core
 from tinydb import Query, TinyDB
@@ -100,11 +101,9 @@ def init_trakt_auth():
 
 @dataclass
 class Title:
-    full_title: str
+    full: str
     without_year: str
-    year: int
-    titleWithoutYear: str
-    yearValue: int
+    year: Optional[int]
 
     def __init__(self, title: str):
         try:
@@ -114,19 +113,15 @@ class Title:
             # Then, get the title without the year value included
             title_value = title.split("(")[0].strip()
             # Put this together into an object
-            self.full_title = title
+            self.full = title
             self.without_year = title_value
-            self.titleWithoutYear = title_value
             self.year = int(year_value)
-            self.yearValue = int(year_value)
         except Exception:
             # If the above failed, then the title doesn't include a year
             # so return the object as is.
-            self.full_title = title
+            self.full = title
             self.without_year = title
-            self.titleWithoutYear = title
-            self.year = -1
-            self.yearValue = -1
+            self.year = None
 
 
 def get_year_from_title(title) -> Title:
@@ -169,16 +164,11 @@ def check_title_name_match(tv_time_title, trakt_title):
 
 def get_show_by_name(name, season_number, episode_number):
     # Parse the TV Show's name for year, if one is present in the string
-    title_obj = get_year_from_title(name)
-
-    # Create a boolean to indicate if the title contains a year,
-    # this is used later on to improve the accuracy of picking
-    # from search results
-    does_title_include_year = title_obj.yearValue != -1
+    title = get_year_from_title(name)
 
     # If the title contains a year, then replace the local variable with the stripped version
-    if does_title_include_year:
-        name = title_obj.titleWithoutYear
+    if title.year:
+        name = title.without_year
 
     # Request the Trakt API for search results, using the name
     tv_search = TVShow.search(name)
@@ -192,15 +182,15 @@ def get_show_by_name(name, season_number, episode_number):
         if check_title_name_match(name, show.title):
             # If the title included the year of broadcast, then we can be more picky in the results
             # to look for a show with a broadcast year that matches
-            if does_title_include_year:
+            if title.year:
                 # If the show title is a 1:1 match, with the same broadcast year, then bingo!
-                if (name == show.title) and (show.year == title_obj.yearValue):
+                if (name == show.title) and (show.year == title.year):
                     # Clear previous results, and only use this one
                     shows_with_same_name = [show]
                     break
 
                 # Otherwise, only add the show if the broadcast year matches
-                if show.year == title_obj.yearValue:
+                if show.year == title.year:
                     shows_with_same_name.append(show)
             # If the program doesn't have the broadcast year, then add all the results
             else:
@@ -487,16 +477,11 @@ def process_watched_shows():
 
 def get_movie_by_name(name):
     # Parse the Movie's name for year, if one is present in the string
-    title_obj = get_year_from_title(name)
-
-    # Create a boolean to indicate if the title contains a year,
-    # this is used later on to improve the accuracy of picking
-    # from search results
-    does_title_include_year = title_obj.yearValue != -1
+    title = get_year_from_title(name)
 
     # If the title contains a year, then replace the local variable with the stripped version
-    if does_title_include_year:
-        name = title_obj.titleWithoutYear
+    if title.year:
+        name = title.without_year
 
     # Request the Trakt API for search results, using the name
     movie_search = Movie.search(name)
@@ -510,15 +495,15 @@ def get_movie_by_name(name):
         if check_title_name_match(name, movie.title):
             # If the title included the year of broadcast, then we can be more picky in the results
             # to look for a movie with a broadcast year that matches
-            if does_title_include_year:
+            if title.year:
                 # If the movie title is a 1:1 match, with the same broadcast year, then bingo!
-                if (name == movie.title) and (movie.year == title_obj.yearValue):
+                if (name == movie.title) and (movie.year == title.year):
                     # Clear previous results, and only use this one
                     movies_with_same_name = [movie]
                     break
 
                 # Otherwise, only add the movie if the broadcast year matches
-                if movie.year == title_obj.yearValue:
+                if movie.year == title.year:
                     movies_with_same_name.append(movie)
             # If the program doesn't have the broadcast year, then add all the results
             else:
