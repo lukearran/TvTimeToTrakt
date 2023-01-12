@@ -8,7 +8,7 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Callable, TypeVar, Union, List
 
 import trakt.core
 from tinydb import Query, TinyDB
@@ -99,7 +99,7 @@ def init_trakt_auth() -> bool:
 
 @dataclass
 class Title:
-    full: str
+    name: str
     without_year: str
     year: Optional[int]
 
@@ -111,13 +111,13 @@ class Title:
             # Then, get the title without the year value included
             title_value = title.split("(")[0].strip()
             # Put this together into an object
-            self.full = title
+            self.name = title
             self.without_year = title_value
             self.year = int(year_value)
         except Exception:
             # If the above failed, then the title doesn't include a year
             # so return the object as is.
-            self.full = title
+            self.name = title
             self.without_year = title
             self.year = None
 
@@ -159,6 +159,35 @@ def check_title_name_match(tv_time_title: str, trakt_title: str) -> bool:
 # Using TV Time data (Name of Show, Season No and Episode) - find the corresponding show
 # in Trakt.TV either by automation, or asking the user to confirm.
 
+TraktTVShow = TypeVar("TraktTVShow")
+TraktMovie = TypeVar("TraktMovie")
+
+SearchResult = Union[TraktTVShow, TraktMovie]
+
+
+def get_items_with_same_name(title: Title, name: str, items: List[SearchResult]) -> List[SearchResult]:
+    shows_with_same_name = []
+
+    for item in items:
+        if check_title_name_match(name, item.title):
+            # If the title included the year of broadcast, then we can be more picky in the results
+            # to look for an item with a broadcast year that matches
+            if title.year:
+                # If the item title is a 1:1 match, with the same broadcast year, then bingo!
+                if (name == item.title) and (item.year == title.year):
+                    # Clear previous results, and only use this one
+                    shows_with_same_name = [item]
+                    break
+
+                # Otherwise, only add the item if the broadcast year matches
+                if item.year == title.year:
+                    shows_with_same_name.append(item)
+            # If the item doesn't have the broadcast year, then add all the results
+            else:
+                shows_with_same_name.append(item)
+
+    return shows_with_same_name
+
 
 def get_show_by_name(name: str, season_number: str, episode_number: str):
     # Parse the TV Show's name for year, if one is present in the string
@@ -168,30 +197,10 @@ def get_show_by_name(name: str, season_number: str, episode_number: str):
     if title.year:
         name = title.without_year
 
-    # Create an array of shows which have been matched
-    shows_with_same_name = []
+    shows_with_same_name = get_items_with_same_name(title, name, TVShow.search(name))
 
-    # Go through each result from the search
-    for show in TVShow.search(name):
-        # Check if the title is a match, based on our conditions (e.g. over 50% of words match)
-        if check_title_name_match(name, show.title):
-            # If the title included the year of broadcast, then we can be more picky in the results
-            # to look for a show with a broadcast year that matches
-            if title.year:
-                # If the show title is a 1:1 match, with the same broadcast year, then bingo!
-                if (name == show.title) and (show.year == title.year):
-                    # Clear previous results, and only use this one
-                    shows_with_same_name = [show]
-                    break
-
-                # Otherwise, only add the show if the broadcast year matches
-                if show.year == title.year:
-                    shows_with_same_name.append(show)
-            # If the program doesn't have the broadcast year, then add all the results
-            else:
-                shows_with_same_name.append(show)
-
-    complete_match_names = [name_from_search for name_from_search in shows_with_same_name if name_from_search.title == name]
+    complete_match_names = [name_from_search for name_from_search in shows_with_same_name if
+                            name_from_search.title == name]
     if len(complete_match_names) == 1:
         return complete_match_names[0]
     elif len(shows_with_same_name) == 1:
@@ -465,30 +474,10 @@ def get_movie_by_name(name: str):
     if title.year:
         name = title.without_year
 
-    # Create an array of movies which have been matched
-    movies_with_same_name = []
+    movies_with_same_name = get_items_with_same_name(title, name, Movie.search(name))
 
-    # Go through each result from the search
-    for movie in Movie.search(name):
-        # Check if the title is a match, based on our conditions (e.g. over 50% of words match)
-        if check_title_name_match(name, movie.title):
-            # If the title included the year of broadcast, then we can be more picky in the results
-            # to look for a movie with a broadcast year that matches
-            if title.year:
-                # If the movie title is a 1:1 match, with the same broadcast year, then bingo!
-                if (name == movie.title) and (movie.year == title.year):
-                    # Clear previous results, and only use this one
-                    movies_with_same_name = [movie]
-                    break
-
-                # Otherwise, only add the movie if the broadcast year matches
-                if movie.year == title.year:
-                    movies_with_same_name.append(movie)
-            # If the program doesn't have the broadcast year, then add all the results
-            else:
-                movies_with_same_name.append(movie)
-
-    complete_match_names = [name_from_search for name_from_search in movies_with_same_name if name_from_search.title == name]
+    complete_match_names = [name_from_search for name_from_search in movies_with_same_name if
+                            name_from_search.title == name]
     if len(complete_match_names) == 1:
         return complete_match_names[0]
     elif len(movies_with_same_name) == 1:
