@@ -34,10 +34,6 @@ syncedMoviesTable = database.table("SyncedMovies")
 userMatchedMoviesTable = database.table("TvTimeTraktUserMatchedMovies")
 
 
-class Expando(object):
-    pass
-
-
 @dataclass
 class Config:
     trakt_username: str
@@ -102,26 +98,39 @@ def init_trakt_auth():
 # and then return this value, with the title and year removed to improve
 # the accuracy of Trakt results.
 
+@dataclass
+class Title:
+    full_title: str
+    without_year: str
+    year: int
+    titleWithoutYear: str
+    yearValue: int
 
-def get_year_from_title(title):
-    ex = Expando()
+    def __init__(self, title: str):
+        try:
+            # Use a regex expression to get the value within the brackets e.g. The Americans (2017)
+            year_search = re.search(r"\(([A-Za-z0-9_]+)\)", title)
+            year_value = year_search.group(1)
+            # Then, get the title without the year value included
+            title_value = title.split("(")[0].strip()
+            # Put this together into an object
+            self.full_title = title
+            self.without_year = title_value
+            self.titleWithoutYear = title_value
+            self.year = int(year_value)
+            self.yearValue = int(year_value)
+        except Exception:
+            # If the above failed, then the title doesn't include a year
+            # so return the object as is.
+            self.full_title = title
+            self.without_year = title
+            self.titleWithoutYear = title
+            self.year = -1
+            self.yearValue = -1
 
-    try:
-        # Use a regex expression to get the value within the brackets e.g The Americans (2017)
-        year_search = re.search(r"\(([A-Za-z0-9_]+)\)", title)
-        year_value = year_search.group(1)
-        # Then, get the title without the year value included
-        title_value = title.split("(")[0].strip()
-        # Put this together into an object
-        ex.titleWithoutYear = title_value
-        ex.yearValue = int(year_value)
-        return ex
-    except Exception:
-        # If the above failed, then the title doesn't include a year
-        # so return the object as is.
-        ex.titleWithoutYear = title
-        ex.yearValue = -1
-        return ex
+
+def get_year_from_title(title) -> Title:
+    return Title(title)
 
 
 # Shows in TV Time are often different to Trakt.TV - in order to improve results and automation,
