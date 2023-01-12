@@ -556,7 +556,7 @@ def get_movie_by_name(name: str):
                 # Record that the user has skipped the Movie for import, so that
                 # manual input isn't required everytime
                 userMatchedMoviesTable.insert(
-                    {"movie_name": name, "UserSelectedIndex": 0, "SkipMovie": True}
+                    {"MovieName": name, "UserSelectedIndex": 0, "SkipMovie": True}
                 )
 
                 return None
@@ -566,7 +566,7 @@ def get_movie_by_name(name: str):
 
                 userMatchedMoviesTable.insert(
                     {
-                        "movie_name": name,
+                        "MovieName": name,
                         "UserSelectedIndex": index_selected,
                         "SkipMovie": False,
                     }
