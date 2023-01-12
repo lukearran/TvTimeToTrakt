@@ -165,16 +165,16 @@ TraktMovie = TypeVar("TraktMovie")
 SearchResult = Union[TraktTVShow, TraktMovie]
 
 
-def get_items_with_same_name(title: Title, name: str, items: List[SearchResult]) -> List[SearchResult]:
+def get_items_with_same_name(title: Title, items: List[SearchResult]) -> List[SearchResult]:
     shows_with_same_name = []
 
     for item in items:
-        if check_title_name_match(name, item.title):
+        if check_title_name_match(title.name, item.title):
             # If the title included the year of broadcast, then we can be more picky in the results
             # to look for an item with a broadcast year that matches
             if title.year:
                 # If the item title is a 1:1 match, with the same broadcast year, then bingo!
-                if (name == item.title) and (item.year == title.year):
+                if (title.name == item.title) and (item.year == title.year):
                     # Clear previous results, and only use this one
                     shows_with_same_name = [item]
                     break
@@ -197,7 +197,7 @@ def get_show_by_name(name: str, season_number: str, episode_number: str):
     if title.year:
         name = title.without_year
 
-    shows_with_same_name = get_items_with_same_name(title, name, TVShow.search(name))
+    shows_with_same_name = get_items_with_same_name(title, TVShow.search(name))
 
     complete_match_names = [name_from_search for name_from_search in shows_with_same_name if
                             name_from_search.title == name]
@@ -474,7 +474,7 @@ def get_movie_by_name(name: str):
     if title.year:
         name = title.without_year
 
-    movies_with_same_name = get_items_with_same_name(title, name, Movie.search(name))
+    movies_with_same_name = get_items_with_same_name(title, Movie.search(name))
 
     complete_match_names = [name_from_search for name_from_search in movies_with_same_name if
                             name_from_search.title == name]
