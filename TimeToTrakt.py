@@ -58,15 +58,24 @@ def isAuthenticated():
 
 
 def getConfiguration() -> Config:
-    with open("config.json") as f:
-        data = json.load(f)
+    try:
+        with open("config.json") as f:
+            data = json.load(f)
 
-    return Config(
-        data["TRAKT_USERNAME"],
-        data["CLIENT_ID"],
-        data["CLIENT_SECRET"],
-        data["GDPR_WORKSPACE_PATH"],
-    )
+        return Config(
+            data["TRAKT_USERNAME"],
+            data["CLIENT_ID"],
+            data["CLIENT_SECRET"],
+            data["GDPR_WORKSPACE_PATH"],
+        )
+    except FileNotFoundError:
+        logging.info("config.json not found prompting user for input")
+        return Config(
+            input("Enter your Trakt.tv username: "),
+            input("Enter you Client id: "),
+            input("Enter your Client secret: "),
+            input("Enter your GDPR workspace path: ")
+        )
 
 
 config = getConfiguration()
@@ -817,18 +826,12 @@ def start():
 
 
 if __name__ == "__main__":
-    # Check that the user has created the config file
-    if os.path.exists("config.json"):
-        # Check that the user has provided the GDPR path
-        if os.path.isdir(config.gdpr_workspace_path):
-            start()
-        else:
-            logging.error(
-                "Oops! The TV Time GDPR folder '"
-                + config.gdpr_workspace_path
-                + "' does not exist on the local system. Please check it, and try again."
-            )
+    # Check that the user has provided the GDPR path
+    if os.path.isdir(config.gdpr_workspace_path):
+        start()
     else:
         logging.error(
-            "The 'config.json' file cannot be found - have you created it yet?"
+            "Oops! The TV Time GDPR folder '"
+            + config.gdpr_workspace_path
+            + "' does not exist on the local system. Please check it, and try again."
         )
