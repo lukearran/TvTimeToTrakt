@@ -189,6 +189,33 @@ def get_items_with_same_name(title: Title, items: List[SearchResult]) -> List[Se
     return shows_with_same_name
 
 
+@dataclass
+class GetItemInput:
+    pass
+
+
+@dataclass
+class GetTVShowInput(GetItemInput):
+    pass
+
+
+@dataclass
+class GetMovieInput(GetItemInput):
+    pass
+
+
+def get_item():
+    pass
+
+
+def get_show() -> TraktTVShow:
+    pass
+
+
+def get_movie() -> TraktMovie:
+    pass
+
+
 def get_show_by_name(name: str, season_number: str, episode_number: str):
     # Parse the TV Show's name for year, if one is present in the string
     title = get_year_from_title(name)
