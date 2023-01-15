@@ -215,6 +215,17 @@ def get_item(get_item_input: GetItemInput) -> Optional[SearchResult]:
         return None
 
 
+def find_single_result(name: str, items_with_same_name: List[SearchResult]) -> Optional[SearchResult]:
+    complete_match_names = [name_from_search for name_from_search in items_with_same_name if
+                            name_from_search.title == name]
+    if len(complete_match_names) == 1:
+        return complete_match_names[0]
+    elif len(items_with_same_name) == 1:
+        return items_with_same_name[0]
+    elif len(items_with_same_name) < 1:
+        return None
+
+
 def get_show_by_name(name: str, season_number: str, episode_number: str):
     # Parse the TV Show's name for year, if one is present in the string
     title = get_year_from_title(name)
@@ -225,14 +236,9 @@ def get_show_by_name(name: str, season_number: str, episode_number: str):
 
     shows_with_same_name = get_items_with_same_name(title, TVShow.search(name))
 
-    complete_match_names = [name_from_search for name_from_search in shows_with_same_name if
-                            name_from_search.title == name]
-    if len(complete_match_names) == 1:
-        return complete_match_names[0]
-    elif len(shows_with_same_name) == 1:
-        return shows_with_same_name[0]
-    elif len(shows_with_same_name) < 1:
-        return None
+    single_result = find_single_result(name, shows_with_same_name)
+    if single_result:
+        return single_result
     else:
         # If the search contains multiple results, then we need to confirm with the user which show
         # the script should use, or access the local database to see if the user has already provided
@@ -504,14 +510,9 @@ def get_movie_by_name(name: str) -> Optional[TraktMovie]:
 
     movies_with_same_name = get_items_with_same_name(title, Movie.search(name))
 
-    complete_match_names = [name_from_search for name_from_search in movies_with_same_name if
-                            name_from_search.title == name]
-    if len(complete_match_names) == 1:
-        return complete_match_names[0]
-    elif len(movies_with_same_name) == 1:
-        return movies_with_same_name[0]
-    elif len(movies_with_same_name) < 1:
-        return None
+    single_result = find_single_result(name, movies_with_same_name)
+    if single_result:
+        return single_result
     else:
         # If the search contains multiple results, then we need to confirm with the user which movie
         # the script should use, or access the local database to see if the user has already provided
