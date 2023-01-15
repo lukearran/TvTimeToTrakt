@@ -1,8 +1,12 @@
 # TV Time to Trakt - Import Script
 
-![](https://loch.digital/image_for_external_apps/4342799-01.png)
-
 A Python script to import TV Time tracked episode and movie data into Trakt.TV - using data export provided by TV Time through a GDPR request.
+
+This script was made possible by the following contributors.
+
+<a href="https://github.com/lukearran/TvTimeToTrakt/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=lukearran/TvTimeToTrakt" />
+</a>
 
 # Notes
 
@@ -55,7 +59,3 @@ Create a new file named `config.json` in the same directory of `TimeToTrakt.py`,
 ```
 
 Once the config is in place, execute the program using `python TimeToTrakt.py`. The process isn't 100% automated - you will need to pop back, especially with large imports, to check if the script requires a manual user input.
-
-##### Credit
-
-<a href='https://www.freepik.com/vectors/city'>City vector created by freepik - www.freepik.com</a>
