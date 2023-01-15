@@ -8,7 +8,7 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Callable, TypeVar, Union, List
+from typing import Optional, Callable, TypeVar, Union, List, Literal
 
 import trakt.core
 from tinydb import Query, TinyDB
@@ -191,12 +191,13 @@ def get_items_with_same_name(title: Title, items: List[SearchResult]) -> List[Se
 
 @dataclass
 class GetItemInput:
-    pass
+    name: str
 
 
 @dataclass
 class GetTVShowInput(GetItemInput):
-    pass
+    season_number: str
+    episode_number: str
 
 
 @dataclass
@@ -204,16 +205,14 @@ class GetMovieInput(GetItemInput):
     pass
 
 
-def get_item():
-    pass
-
-
-def get_show() -> TraktTVShow:
-    pass
-
-
-def get_movie() -> TraktMovie:
-    pass
+def get_item(get_item_input: GetItemInput) -> Optional[SearchResult]:
+    if isinstance(get_item_input, GetTVShowInput):
+        return get_show_by_name(get_item_input.name, get_item_input.season_number, get_item_input.episode_number)
+    elif isinstance(get_item_input, GetMovieInput):
+        return get_movie_by_name(get_item_input.name)
+    else:
+        logging.warning("Invalid get item input type")
+        return None
 
 
 def get_show_by_name(name: str, season_number: str, episode_number: str):
@@ -344,7 +343,7 @@ def parse_season_number(season_number, trakt_show_obj):
         # No need to modify the value, as the TV Time value will match Trakt
         return season_number
     # Otherwise, if the Trakt seasons start with no specials, then return the seasonNo,
-    # but subtracted by one (e.g Season 1 in TV Time, will be 0)
+    # but subtracted by one (e.g. Season 1 in TV Time, will be 0)
     else:
         # Only subtract if the TV Time season number is greater than 0.
         if season_number != 0:
@@ -409,8 +408,10 @@ def process_watched_shows() -> None:
                         # Other developers share the service, for free - so be considerate of your usage.
                         time.sleep(DELAY_BETWEEN_EPISODES_IN_SECONDS)
                         # Search Trakt for the TV show matching TV Time's title value
-                        trakt_show = get_show_by_name(
-                            tv_show_name, tv_show_season_number, tv_show_episode_number
+                        trakt_show = get_item(
+                            GetTVShowInput(
+                                tv_show_name, tv_show_season_number, tv_show_episode_number
+                            )
                         )
                         # If the method returned 'None', then this is an indication to skip the episode, and
                         # move onto the next one
@@ -493,7 +494,7 @@ def process_watched_shows() -> None:
 # in Trakt.TV either by automation, or asking the user to confirm.
 
 
-def get_movie_by_name(name: str):
+def get_movie_by_name(name: str) -> Optional[TraktMovie]:
     # Parse the Movie's name for year, if one is present in the string
     title = get_year_from_title(name)
 
@@ -674,7 +675,7 @@ def process_movies():
                         # Other developers share the service, for free - so be considerate of your usage.
                         time.sleep(DELAY_BETWEEN_EPISODES_IN_SECONDS)
                         # Search Trakt for the Movie matching TV Time's title value
-                        trakt_movie_obj = get_movie_by_name(movie_name)
+                        trakt_movie_obj = get_item(GetMovieInput(movie_name))
                         # If the method returned 'None', then this is an indication to skip the episode, and
                         # move onto the next one
                         if trakt_movie_obj is None:
