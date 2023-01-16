@@ -6,9 +6,10 @@ import os
 import re
 import sys
 import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Callable, TypeVar, Union, Any
+from typing import Optional, TypeVar, Union, Any, TextIO
 
 import trakt.core
 from tinydb import Query, TinyDB
@@ -186,21 +187,46 @@ class Title:
         return percentage > 50
 
 
-class Searcher:
-    def __init__(self, user_matched_table: Table, trakt_search: Callable[[str], list[SearchResult]],
-                 manual_selection_prompt: Callable[[list[SearchResult]], None]):
+class TVTimeItem:
+    def __init__(self, name: str, updated_at: str):
+        self.name = name
+        # Get the date which the show was marked 'watched' in TV Time
+        # and parse the watched date value into a Python type
+        self.date_watched = datetime.strptime(
+            updated_at, "%Y-%m-%d %H:%M:%S"
+        )
+
+
+class TVTimeTVShow(TVTimeItem):
+    def __init__(self, row: Any):
+        # Get the name of the item
+        super().__init__(row["tv_show_name"], row["updated_at"])
+        # Get the TV Time Episode id
+        self.episode_id = row["episode_id"]
+        # Get the TV Time Season Number
+        self.season_number = row["episode_season_number"]
+        # Get the TV Time Episode Number
+        self.episode_number = row["episode_number"]
+
+
+class TVTimeMovie(TVTimeItem):
+    def __init__(self, row: Any):
+        super().__init__(row["movie_name"], row["updated_at"])
+        self.activity_type = row["type"]
+
+
+class Searcher(ABC):
+    def __init__(self, user_matched_table: Table):
         self.name = ""
         self.items_with_same_name = None
         self._user_matched_table = user_matched_table
-        self.trakt_search = trakt_search
-        self._manual_selection_prompt = manual_selection_prompt
 
     def search(self, title: Title) -> Optional[SearchResult]:
         self.name = title.name
         # If the title contains a year, then replace the local variable with the stripped version.
         if title.year:
             self.name = title.without_year
-        self.items_with_same_name = title.items_with_same_name(self._search_trakt(self.name))
+        self.items_with_same_name = title.items_with_same_name(self.search_trakt(self.name))
 
         single_result = self._check_single_result()
         if single_result:
@@ -219,8 +245,13 @@ class Searcher:
         else:
             self._handle_multiple_manually()
 
-    def _search_trakt(self, name: str) -> list[SearchResult]:
-        return self.trakt_search(name)
+    @abstractmethod
+    def search_trakt(self, name: str) -> list[SearchResult]:
+        pass
+
+    @abstractmethod
+    def _print_manual_selection(self):
+        pass
 
     def _search_local(self) -> tuple[bool, SearchResult]:
         user_matched_query = Query()
@@ -246,7 +277,7 @@ class Searcher:
             return False, None
 
     def _handle_multiple_manually(self) -> Optional[SearchResult]:
-        self._manual_selection_prompt(self.items_with_same_name)
+        self._print_manual_selection()
         while True:
             try:
                 # Get the user's selection, either a numerical input, or a string 'SKIP' value
@@ -305,41 +336,22 @@ class Searcher:
             return None
 
 
-class TVTimeItem:
-    def __init__(self, name: str):
-        self.name = name
-
-
-class TVTimeTVShow(TVTimeItem):
-    def __init__(self, row: Any):
-        # Get the name of the item
-        super().__init__(row["tv_show_name"])
-        # Get the TV Time Episode id
-        self.episode_id = row["episode_id"]
-        # Get the TV Time Season Number
-        self.season_number = row["episode_season_number"]
-        # Get the TV Time Episode Number
-        self.episode_number = row["episode_number"]
-        # Get the date which the show was marked 'watched' in TV Time
-        # and parse the watched date value into a Python type
-        self.date_watched = datetime.strptime(
-            row["updated_at"], "%Y-%m-%d %H:%M:%S"
-        )
-
-
 class TVShowSearcher(Searcher):
     def __init__(self, tv_show: TVTimeTVShow):
-        super().__init__(userMatchedShowsTable, TVShow.search, self._print_manual_selection)
+        super().__init__(userMatchedShowsTable)
         self.tv_show = tv_show
 
-    def _print_manual_selection(self, items_with_same_name: list[SearchResult]) -> None:
+    def search_trakt(self, name: str) -> list[SearchResult]:
+        return TVShow.search(name)
+
+    def _print_manual_selection(self) -> None:
         print(
             f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Show '{self.name}' (Season {self.tv_show.season_number},"
-            f"Episode {self.tv_show.episode_number}) has {len(items_with_same_name)} matching Trakt shows with the same name.\a "
+            f"Episode {self.tv_show.episode_number}) has {len(self.items_with_same_name)} matching Trakt shows with the same name.\a "
         )
 
         # Output each show for manual selection
-        for idx, item in enumerate(items_with_same_name):
+        for idx, item in enumerate(self.items_with_same_name):
             # Display the show's title, broadcast year, amount of seasons and a link to the Trakt page.
             # This will provide the user with enough information to make a selection.
             print(
@@ -350,16 +362,19 @@ class TVShowSearcher(Searcher):
 
 class MovieSearcher(Searcher):
     def __init__(self):
-        super().__init__(userMatchedMoviesTable, Movie.search, self._print_manual_selection)
+        super().__init__(userMatchedMoviesTable)
 
-    def _print_manual_selection(self, items_with_same_name: list[SearchResult]) -> None:
+    def search_trakt(self, name: str) -> list[SearchResult]:
+        return Movie.search(name)
+
+    def _print_manual_selection(self) -> None:
         print(
-            f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Movie '{self.name}' has {len(items_with_same_name)} "
+            f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Movie '{self.name}' has {len(self.items_with_same_name)} "
             f"matching Trakt movies with the same name.\a"
         )
 
         # Output each movie for manual selection
-        for idx, item in enumerate(items_with_same_name):
+        for idx, item in enumerate(self.items_with_same_name):
             # Display the movie's title, broadcast year, amount of seasons and a link to the Trakt page.
             # This will provide the user with enough information to make a selection.
             print(
