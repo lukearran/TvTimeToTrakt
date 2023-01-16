@@ -54,7 +54,7 @@ class Processor(ABC):
                 logging.warning("An error occurred 10 times in a row... skipping episode...")
                 break
 
-            if not self._should_continue():
+            if not self._should_continue(tv_time_item):
                 break
 
             try:
