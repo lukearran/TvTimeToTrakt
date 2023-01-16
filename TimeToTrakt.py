@@ -327,7 +327,6 @@ class TVShowSearcher(Searcher):
             )
 
 
-@dataclass
 class MovieSearcher(Searcher):
     def __init__(self):
         super().__init__(userMatchedMoviesTable, Movie.search, self._print_manual_selection)
