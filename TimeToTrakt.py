@@ -9,7 +9,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, TypeVar, Union, Any, TextIO
+from typing import Optional, TypeVar, Union, Any
 
 import trakt.core
 from tinydb import Query, TinyDB
@@ -27,7 +27,7 @@ logging.basicConfig(
 
 # Adjust this value to increase/decrease your requests between episodes.
 # Make to remain within the rate limit: https://trakt.docs.apiary.io/#introduction/rate-limiting
-DELAY_BETWEEN_EPISODES_IN_SECONDS = 1
+DELAY_BETWEEN_ITEMS_IN_SECONDS = 1
 
 # Create databases to keep track of completed processes
 database = TinyDB("localStorage.json")
@@ -85,7 +85,6 @@ MOVIES_PATH = config.gdpr_workspace_path + "/tracking-prod-records.csv"
 def init_trakt_auth() -> bool:
     if is_authenticated():
         return True
-    # Set the method of authentication
     trakt.core.AUTH_METHOD = trakt.core.OAUTH_AUTH
     return init(
         config.trakt_username,
@@ -94,10 +93,6 @@ def init_trakt_auth() -> bool:
         client_secret=config.client_secret,
     )
 
-
-# With a given title, check if it contains a year (e.g Doctor Who (2005))
-# and then return this value, with the title and year removed to improve
-# the accuracy of Trakt results.
 
 TraktTVShow = TypeVar("TraktTVShow")
 TraktMovie = TypeVar("TraktMovie")
@@ -117,18 +112,15 @@ class Title:
         :param title:
         """
         try:
+            self.name = title
             # Use a regex expression to get the value within the brackets e.g. The Americans (2017)
             year_search = re.search(r"\(([A-Za-z0-9_]+)\)", title)
-            year_value = year_search.group(1)
+            self.year = int(year_search.group(1))
             # Then, get the title without the year value included
-            title_value = title.split("(")[0].strip()
-            # Put this together into an object
-            self.name = title
-            self.without_year = title_value
-            self.year = int(year_value)
+            self.without_year = title.split("(")[0].strip()
         except Exception:
             # If the above failed, then the title doesn't include a year
-            # so return the object as is.
+            # so create the value with "defaults"
             self.name = title
             self.without_year = title
             self.year = None
@@ -167,16 +159,8 @@ class Title:
         if self.name == other:
             return True
 
-        # Split the TvTime title
-        tv_time_title_split = self.name.split()
-
-        # Create an array of words which are found in the Trakt title
-        words_matched = []
-
         # Go through each word of the TV Time title, and check if it's in the Trakt title
-        for word in tv_time_title_split:
-            if word in other:
-                words_matched.append(word)
+        words_matched = [word for word in self.name.split() if word in other]
 
         # Then calculate what percentage of words matched
         quotient = len(words_matched) / len(other.split())
@@ -191,7 +175,7 @@ class TVTimeItem:
     def __init__(self, name: str, updated_at: str):
         self.name = name
         # Get the date which the show was marked 'watched' in TV Time
-        # and parse the watched date value into a Python type
+        # and parse the watched date value into a Python object
         self.date_watched = datetime.strptime(
             updated_at, "%Y-%m-%d %H:%M:%S"
         )
@@ -199,14 +183,36 @@ class TVTimeItem:
 
 class TVTimeTVShow(TVTimeItem):
     def __init__(self, row: Any):
-        # Get the name of the item
         super().__init__(row["tv_show_name"], row["updated_at"])
-        # Get the TV Time Episode id
         self.episode_id = row["episode_id"]
-        # Get the TV Time Season Number
         self.season_number = row["episode_season_number"]
-        # Get the TV Time Episode Number
         self.episode_number = row["episode_number"]
+
+    def parse_season_number(self, trakt_show: TraktTVShow) -> int:
+        """
+        Since the Trakt.Py starts the indexing of seasons in the array from 0 (e.g. Season 1 in Index 0), then
+        subtract the TV Time numerical value by 1, so it starts from 0 as well. However, when a TV series includes
+        a 'special' season, Trakt.Py will place this as the first season in the array - so, don't subtract, since
+        this will match TV Time's existing value.
+        """
+
+        season_number = int(self.season_number)
+        # Gen get the Season Number from the first item in the array
+        first_season_no = trakt_show.seasons[0].number
+
+        # If the season number is 0, then the Trakt show contains a "special" season
+        if first_season_no == 0:
+            # No need to modify the value, as the TV Time value will match Trakt
+            return season_number
+        # Otherwise, if the Trakt seasons start with no specials, then return the seasonNo,
+        # but subtracted by one (e.g. Season 1 in TV Time, will be 0)
+        else:
+            # Only subtract if the TV Time season number is greater than 0.
+            if season_number != 0:
+                return season_number - 1
+            # Otherwise, the TV Time season is a special! Then you don't need to change the starting position
+            else:
+                return season_number
 
 
 class TVTimeMovie(TVTimeItem):
@@ -236,7 +242,6 @@ class Searcher(ABC):
         # the script should use, or access the local database to see if the user has already provided
         # a manual selection
 
-        # Query the local database for existing selection
         should_return, query_result = self._search_local()
         if should_return:
             return query_result
@@ -259,19 +264,12 @@ class Searcher(ABC):
         # If the local database already contains an entry for a manual selection
         # then don't bother prompting the user to select it again!
         if len(query_result) == 1:
-            # Get the first result from the query
             first_match = query_result[0]
-            # Get the value contains the selection index
             first_match_selected_index = int(first_match.get("UserSelectedIndex"))
-            # Check if the user previously requested to skip the show
             skip_show = first_match.get("Skip")
-            # If the user did not skip, but provided an index selection, get the
-            # matching show
             if not skip_show:
                 return True, self.items_with_same_name[first_match_selected_index]
             else:
-                # Otherwise, return None, which will trigger the script to skip
-                # and move onto the next show
                 return True, None
         else:
             return False, None
@@ -285,21 +283,15 @@ class Searcher(ABC):
                     "Please make a selection from above (or enter SKIP):"
                 )
 
-                # Exit the loop
                 if index_selected == "SKIP":
                     break
 
-                # Since the value isn't 'skip', check that the result is numerical
                 index_selected = int(index_selected) - 1
                 break
-            # Still allow the user to provide the exit input, and kill the program
             except KeyboardInterrupt:
                 sys.exit("Cancel requested...")
-            # Otherwise, the user has entered an invalid value, warn the user to try again
             except Exception:
-                logging.error(
-                    f"Sorry! Please select a value between 0 to {len(self.items_with_same_name)}"
-                )
+                logging.error(f"Sorry! Please select a value between 0 to {len(self.items_with_same_name)}")
 
         # If the user entered 'SKIP', then exit from the loop with no selection, which
         # will trigger the program to move onto the next episode
@@ -309,9 +301,7 @@ class Searcher(ABC):
             self._user_matched_table.insert(
                 {"Name": self.name, "UserSelectedIndex": 0, "Skip": True}
             )
-
             return None
-        # Otherwise, return the selection which the user made from the list
         else:
             selected_show = self.items_with_same_name[int(index_selected)]
 
@@ -346,16 +336,14 @@ class TVShowSearcher(Searcher):
 
     def _print_manual_selection(self) -> None:
         print(
-            f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Show '{self.name}' (Season {self.tv_show.season_number},"
-            f"Episode {self.tv_show.episode_number}) has {len(self.items_with_same_name)} matching Trakt shows with the same name.\a "
+            f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Show '{self.name}'"
+            f" (Season {self.tv_show.season_number}, Episode {self.tv_show.episode_number}) has"
+            f" {len(self.items_with_same_name)} matching Trakt shows with the same name.\a "
         )
 
-        # Output each show for manual selection
         for idx, item in enumerate(self.items_with_same_name):
-            # Display the show's title, broadcast year, amount of seasons and a link to the Trakt page.
-            # This will provide the user with enough information to make a selection.
             print(
-                f"    ({idx + 1}) {item.title} - {item.year} - {len(item.seasons)} "
+                f"({idx + 1}) {item.title} - {item.year} - {len(item.seasons)} "
                 f"Season(s) - More Info: https://trakt.tv/{item.ext}"
             )
 
@@ -369,459 +357,251 @@ class MovieSearcher(Searcher):
 
     def _print_manual_selection(self) -> None:
         print(
-            f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Movie '{self.name}' has {len(self.items_with_same_name)} "
-            f"matching Trakt movies with the same name.\a"
+            f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Movie '{self.name}'"
+            f" has {len(self.items_with_same_name)}"
+            f" matching Trakt movies with the same name.\a"
         )
 
-        # Output each movie for manual selection
         for idx, item in enumerate(self.items_with_same_name):
-            # Display the movie's title, broadcast year, amount of seasons and a link to the Trakt page.
-            # This will provide the user with enough information to make a selection.
-            print(
-                f"    ({idx + 1}) {item.title} - {item.year} - More Info: https://trakt.tv/{item.ext}"
+            print(f"({idx + 1}) {item.title} - {item.year} - More Info: https://trakt.tv/{item.ext}")
+
+
+class Processor(ABC):
+    @abstractmethod
+    def process_item(self, tv_time_item: TVTimeItem, progress: float) -> None:
+        pass
+
+
+class TVShowProcessor(Processor):
+    def __init__(self):
+        super().__init__()
+
+    def process_item(self, tv_time_show: TVTimeTVShow, progress: float) -> None:
+        # Query the local database for previous entries indicating that
+        # the item has already been imported in the past. Which will
+        # ease pressure on Trakt's API server during a retry of the import
+        # process, and just save time overall without needing to create network requests.
+        episode_completed_query = Query()
+        synced_episodes = syncedEpisodesTable.search(episode_completed_query.episodeId == tv_time_show.episode_id)
+
+        if len(synced_episodes) != 0:
+            logging.info(
+                f"({progress}) - Already imported,"
+                f" skipping \'{tv_time_show.name}\' Season {tv_time_show.season_number} /"
+                f" Episode {tv_time_show.episode_number}."
             )
+            return
 
+        # If the query returned no results, then continue to import it into Trakt
+        # Create a repeating loop, which will break on success, but repeats on failures
+        error_streak = 0
+        while True:
+            # If more than 10 errors occurred in one streak, whilst trying to import the item
+            # then give up, and move onto the next item, but warn the user.
+            if error_streak > 10:
+                logging.warning("An error occurred 10 times in a row... skipping episode...")
+                break
+            try:
+                # Sleep for a second between each process, before going onto the next watched item.
+                # This is required to remain within the API rate limit, and use the API server fairly.
+                # Other developers share the service, for free - so be considerate of your usage.
+                time.sleep(DELAY_BETWEEN_ITEMS_IN_SECONDS)
 
-class Processor:
-    def __init__(self, reader: csv.DictReader, rows_total: int):
-        self._reader = reader
-        self._rows_total = rows_total
+                trakt_show = TVShowSearcher(tv_time_show).search(Title(tv_time_show.name))
+                if not trakt_show:
+                    break
 
-    def process_watched(self):
-        # Loop through each line/record of the CSV file
-        # Ignore the header row
-        next(self._reader, None)
-        for rowsCount, row in enumerate(self._reader):
-            tv_time_tv_show = TVTimeTVShow(row)
-
-            # Query the local database for previous entries indicating that
-            # the episode has already been imported in the past. Which will
-            # ease pressure on TV Time's API server during a retry of the import
-            # process, and just save time overall without needing to create network requests
-            episode_completed_query = Query()
-            query_result = syncedEpisodesTable.search(
-                episode_completed_query.episodeId == tv_show_episode_id
-            )
-
-            # If the query returned no results, then continue to import it into Trakt
-            if len(query_result) == 0:
-                # Create a repeating loop, which will break on success, but repeats on failures
-                error_streak = 0
-                while True:
-                    # If more than 10 errors occurred in one streak, whilst trying to import the episode
-                    # then give up, and move onto the next episode, but warn the user.
-                    if error_streak > 10:
-                        logging.warning(
-                            "An error occurred 10 times in a row... skipping episode..."
-                        )
-                        break
-                    try:
-                        # Sleep for a second between each process, before going onto the next watched episode.
-                        # This is required to remain within the API rate limit, and use the API server fairly.
-                        # Other developers share the service, for free - so be considerate of your usage.
-                        time.sleep(DELAY_BETWEEN_EPISODES_IN_SECONDS)
-                        # Search Trakt for the TV show matching TV Time's title value
-                        trakt_show = TVShowSearcher(tv_show_season_number,
-                                                    tv_show_episode_number).search(Title(tv_show_name))
-
-                        # If the method returned 'None', then this is an indication to skip the episode, and
-                        # move onto the next one
-                        if not trakt_show:
-                            break
-                        # Show the progress of the import on-screen
-                        logging.info(
-                            f"({rowsCount + 1}/{rows_total}) - Processing '{tv_show_name}' Season {tv_show_season_number} /"
-                            f"Episode {tv_show_episode_number}"
-                        )
-                        # Get the season from the Trakt API
-                        season = trakt_show.seasons[
-                            parse_season_number(tv_show_season_number, trakt_show)
-                        ]
-                        # Get the episode from the season
-                        episode = season.episodes[int(tv_show_episode_number) - 1]
-                        # Mark the episode as watched!
-                        episode.mark_as_seen(tv_show_date_watched_converted)
-                        # Add the episode to the local database as imported, so it can be skipped,
-                        # if the process is repeated
-                        syncedEpisodesTable.insert({"episodeId": tv_show_episode_id})
-                        # Clear the error streak on completing the method without errors
-                        error_streak = 0
-                        break
-                    # Catch errors which occur because of an incorrect array index. This occurs when
-                    # an incorrect Trakt show has been selected, with season/episodes which don't match TV Time.
-                    # It can also occur due to a bug in Trakt Py, whereby some seasons contain an empty array of episodes.
-                    except IndexError:
-                        tv_show_slug = trakt_show.to_json()["shows"][0]["ids"]["ids"][
-                            "slug"
-                        ]
-                        logging.warning(
-                            f"({rowsCount}/{rows_total}) - {tv_show_name} Season {tv_show_season_number}, "
-                            f"Episode {tv_show_episode_number} does not exist in Trakt! "
-                            f"(https://trakt.tv/shows/{tv_show_slug}/seasons/{tv_show_season_number}/episodes/{tv_show_episode_number})"
-                        )
-                        break
-                    # Catch any errors which are raised because a show could not be found in Trakt
-                    except trakt.errors.NotFoundException:
-                        logging.warning(
-                            f"({rowsCount}/{rows_total}) - {tv_show_name} Season {tv_show_season_number}, "
-                            f"Episode {tv_show_episode_number} does not exist (search) in Trakt!"
-                        )
-                        break
-                    # Catch errors because of the program breaching the Trakt API rate limit
-                    except trakt.errors.RateLimitException:
-                        logging.warning(
-                            "The program is running too quickly and has hit Trakt's API rate limit! Please increase the delay between "
-                            + "episdoes via the variable 'DELAY_BETWEEN_EPISODES_IN_SECONDS'. The program will now wait 60 seconds before "
-                            + "trying again."
-                        )
-                        time.sleep(60)
-
-                        # Mark the exception in the error streak
-                        error_streak += 1
-                    # Catch a JSON decode error - this can be raised when the API server is down and produces a HTML page, instead of JSON
-                    except json.decoder.JSONDecodeError:
-                        logging.warning(
-                            f"({rowsCount}/{rows_total}) - A JSON decode error occuring whilst processing {tv_show_name} "
-                            + f"Season {tv_show_season_number}, Episode {tv_show_episode_number}! This might occur when the server is down and has produced "
-                            + "a HTML document instead of JSON. The script will wait 60 seconds before trying again."
-                        )
-
-                        # Wait 60 seconds
-                        time.sleep(60)
-
-                        # Mark the exception in the error streak
-                        error_streak += 1
-                    # Catch a CTRL + C keyboard input, and exits the program
-                    except KeyboardInterrupt:
-                        sys.exit("Cancel requested...")
-            # Skip the episode
-            else:
                 logging.info(
-                    f"({rowsCount}/{rows_total}) - Already imported, skipping '{tv_show_name}' Season {tv_show_season_number} / Episode {tv_show_episode_number}."
+                    f"({progress}) - Processing '{tv_time_show.name}'"
+                    f" Season {tv_time_show.season_number} /"
+                    f" Episode {tv_time_show.episode_number}"
                 )
 
+                season = trakt_show.seasons[tv_time_show.parse_season_number(trakt_show)]
+                episode = season.episodes[int(tv_time_show.episode_number) - 1]
+                episode.mark_as_seen(tv_time_show.date_watched)
+                # Add the episode to the local database as imported, so it can be skipped,
+                # if the process is repeated
+                syncedEpisodesTable.insert({"episodeId": tv_time_show.episode_id})
+                logging.info(f"'{tv_time_show.name}' marked as seen")
 
-def parse_season_number(season_number, trakt_show_obj):
-    """
-    Since the Trakt.Py starts the indexing of seasons in the array from 0 (e.g. Season 1 in Index 0), then
-    subtract the TV Time numerical value by 1, so it starts from 0 as well. However, when a TV series includes
-    a 'special' season, Trakt.Py will place this as the first season in the array - so, don't subtract, since
-    this will match TV Time's existing value.
-    """
+                error_streak = 0
+                break
+            # Catch errors which occur because of an incorrect array index. This occurs when
+            # an incorrect Trakt show has been selected, with season/episodes which don't match TV Time.
+            # It can also occur due to a bug in Trakt Py, whereby some seasons contain an empty array of episodes.
+            except IndexError:
+                tv_show_slug = trakt_show.to_json()["shows"][0]["ids"]["ids"]["slug"]
+                logging.warning(
+                    f"({progress}) - {tv_time_show.name} Season {tv_time_show.season_number},"
+                    f" Episode {tv_time_show.episode_number} does not exist in Trakt!"
+                    f" (https://trakt.tv/shows/{tv_show_slug}/seasons/{tv_time_show.season_number}/episodes/{tv_time_show.episode_number})"
+                )
+                break
+            except trakt.core.errors.NotFoundException:
+                logging.warning(
+                    f"({progress}) - {tv_time_show.name} Season {tv_time_show.season_number},"
+                    f" Episode {tv_time_show.episode_number} does not exist (search) in Trakt!"
+                )
+                break
+            except trakt.core.errors.RateLimitException:
+                logging.warning(
+                    "The program is running too quickly and has hit Trakt's API rate limit!"
+                    " Please increase the delay between"
+                    " movies via the variable 'DELAY_BETWEEN_EPISODES_IN_SECONDS'."
+                    " The program will now wait 60 seconds before"
+                    " trying again."
+                )
+                time.sleep(60)
+                error_streak += 1
+            # Catch a JSON decode error - this can be raised when the API server is down and produces an HTML page,
+            # instead of JSON
+            except json.decoder.JSONDecodeError:
+                logging.warning(
+                    f"({progress}) - A JSON decode error occurred whilst processing {tv_time_show.name}"
+                    " This might occur when the server is down and has produced"
+                    " a HTML document instead of JSON. The script will wait 60 seconds before trying again."
+                )
 
-    # Parse the season number into a numerical value
-    season_number = int(season_number)
+                time.sleep(60)
+                error_streak += 1
+            # Catch a CTRL + C keyboard input, and exits the program
+            except KeyboardInterrupt:
+                sys.exit("Cancel requested...")
 
-    # Then get the Season Number from the first item in the array
-    first_season_no = trakt_show_obj.seasons[0].number
 
-    # If the season number is 0, then the Trakt show contains a "special" season
-    if first_season_no == 0:
-        # No need to modify the value, as the TV Time value will match Trakt
-        return season_number
-    # Otherwise, if the Trakt seasons start with no specials, then return the seasonNo,
-    # but subtracted by one (e.g. Season 1 in TV Time, will be 0)
-    else:
-        # Only subtract if the TV Time season number is greater than 0.
-        if season_number != 0:
-            return season_number - 1
-        # Otherwise, the TV Time season is a special! Then you don't need to change the starting position
-        else:
-            return season_number
+class MovieProcessor(Processor):
+    def __init__(self, watched_list: list):
+        super().__init__()
+        self._watched_list = watched_list
+
+    def process_item(self, tv_time_movie: TVTimeMovie, progress: float) -> None:
+        # Query the local database for previous entries indicating that
+        # the episode has already been imported in the past. Which will
+        # ease pressure on Trakt's API server during a retry of the import
+        # process, and just save time overall without needing to create network requests.
+        movie_query = Query()
+        synced_movies = syncedMoviesTable.search(
+            (movie_query.movie_name == tv_time_movie.name) & (movie_query.type == "watched")
+        )
+
+        if len(synced_movies) != 0:
+            logging.info(f"({progress}) - Already imported, skipping '{tv_time_movie.name}'.")
+            return
+
+        watchlist_query = Query()
+        movies_in_watchlist = syncedMoviesTable.search(
+            (watchlist_query.movie_name == tv_time_movie.name) & (watchlist_query.type == "watchlist")
+        )
+
+        # If the query returned no results, then continue to import it into Trakt
+        # Create a repeating loop, which will break on success, but repeats on failures
+        error_streak = 0
+        while True:
+            # If more than 10 errors occurred in one streak, whilst trying to import the item
+            # then give up, and move onto the next item, but warn the user.
+            if error_streak > 10:
+                logging.warning("An error occurred 10 times in a row... skipping episode...")
+                break
+            # If movie is watched but this is an entry for watchlist, then skip
+            if tv_time_movie.name in self._watched_list and tv_time_movie.activity_type != "watch":
+                logging.info(f"Skipping '{tv_time_movie.name}' to avoid redundant watchlist entry.")
+                break
+            try:
+                # Sleep for a second between each process, before going onto the next watched item.
+                # This is required to remain within the API rate limit, and use the API server fairly.
+                # Other developers share the service, for free - so be considerate of your usage.
+                time.sleep(DELAY_BETWEEN_ITEMS_IN_SECONDS)
+                trakt_movie = MovieSearcher().search(Title(tv_time_movie.name))
+                if not trakt_movie:
+                    break
+
+                logging.info(f"({progress}) - Processing '{tv_time_movie.name}'")
+
+                if tv_time_movie.activity_type == "watch":
+                    trakt_movie.mark_as_seen(tv_time_movie.date_watched)
+                    # Add the episode to the local database as imported, so it can be skipped,
+                    # if the process is repeated
+                    syncedMoviesTable.insert(
+                        {"movie_name": tv_time_movie.name, "type": "watched"}
+                    )
+                    logging.info(f"'{tv_time_movie.name}' marked as seen")
+                elif len(movies_in_watchlist) == 0:
+                    trakt_movie.add_to_watchlist()
+                    # Add the episode to the local database as imported, so it can be skipped,
+                    # if the process is repeated
+                    syncedMoviesTable.insert(
+                        {"movie_name": tv_time_movie.name, "type": "watchlist"}
+                    )
+                    logging.info(f"'{tv_time_movie.name}' added to watchlist")
+                else:
+                    logging.warning(f"{tv_time_movie.name} already in watchlist")
+
+                error_streak = 0
+                break
+            # Catch errors which occur because of an incorrect array index. This occurs when
+            # an incorrect Trakt movie has been selected, with season/episodes which don't match TV Time.
+            # It can also occur due to a bug in Trakt Py, whereby some seasons contain an empty array of episodes.
+            except IndexError:
+                movie_slug = trakt_movie.to_json()["movies"][0]["ids"]["ids"]["slug"]
+                logging.warning(
+                    f"({progress}) - {tv_time_movie.name}"
+                    f" does not exist in Trakt! (https://trakt.tv/movies/{movie_slug}/)"
+                )
+                break
+            except trakt.core.errors.NotFoundException:
+                logging.warning(f"({progress}) - {tv_time_movie.name} does not exist (search) in Trakt!")
+                break
+            except trakt.core.errors.RateLimitException:
+                logging.warning(
+                    "The program is running too quickly and has hit Trakt's API rate limit!"
+                    " Please increase the delay between"
+                    " movies via the variable 'DELAY_BETWEEN_EPISODES_IN_SECONDS'."
+                    " The program will now wait 60 seconds before"
+                    " trying again."
+                )
+                time.sleep(60)
+                error_streak += 1
+            except json.decoder.JSONDecodeError:
+                logging.warning(
+                    f"({progress}) - A JSON decode error occurred whilst processing {tv_time_movie.name}"
+                    " This might occur when the server is down and has produced"
+                    " a HTML document instead of JSON. The script will wait 60 seconds before trying again."
+                )
+
+                time.sleep(60)
+                error_streak += 1
+            # Catch a CTRL + C keyboard input, and exits the program
+            except KeyboardInterrupt:
+                sys.exit("Cancel requested...")
 
 
 def process_watched_shows() -> None:
-    # Open the CSV file within the GDPR exported data
     with open(WATCHED_SHOWS_PATH, newline="") as csvfile:
-        # Create the CSV reader, which will break up the fields using the delimiter ','
-        shows_reader = csv.DictReader(csvfile, delimiter=",")
-        # Get the total amount of rows in the CSV file,
-        rows_total = len(list(shows_reader))
-        # Move position to the beginning of the file
+        reader = csv.DictReader(csvfile, delimiter=",")
+        total_rows = len(list(reader))
         csvfile.seek(0, 0)
 
-        processor = Processor(shows_reader, rows_total)
-        processor.process_watched()
-
-        # Loop through each line/record of the CSV file
         # Ignore the header row
-        next(shows_reader, None)
-        for rowsCount, row in enumerate(shows_reader):
-            # Get the name of the TV show
-            tv_show_name = row["tv_show_name"]
-            # Get the TV Time Episode id
-            tv_show_episode_id = row["episode_id"]
-            # Get the TV Time Season Number
-            tv_show_season_number = row["episode_season_number"]
-            # Get the TV Time Episode Number
-            tv_show_episode_number = row["episode_number"]
-            # Get the date which the show was marked 'watched' in TV Time
-            tv_show_date_watched = row["updated_at"]
-            # Parse the watched date value into a Python type
-            tv_show_date_watched_converted = datetime.strptime(
-                tv_show_date_watched, "%Y-%m-%d %H:%M:%S"
-            )
-
-            # Query the local database for previous entries indicating that
-            # the episode has already been imported in the past. Which will
-            # ease pressure on TV Time's API server during a retry of the import
-            # process, and just save time overall without needing to create network requests
-            episode_completed_query = Query()
-            query_result = syncedEpisodesTable.search(
-                episode_completed_query.episodeId == tv_show_episode_id
-            )
-
-            # If the query returned no results, then continue to import it into Trakt
-            if len(query_result) == 0:
-                # Create a repeating loop, which will break on success, but repeats on failures
-                error_streak = 0
-                while True:
-                    # If more than 10 errors occurred in one streak, whilst trying to import the episode
-                    # then give up, and move onto the next episode, but warn the user.
-                    if error_streak > 10:
-                        logging.warning(
-                            "An error occurred 10 times in a row... skipping episode..."
-                        )
-                        break
-                    try:
-                        # Sleep for a second between each process, before going onto the next watched episode.
-                        # This is required to remain within the API rate limit, and use the API server fairly.
-                        # Other developers share the service, for free - so be considerate of your usage.
-                        time.sleep(DELAY_BETWEEN_EPISODES_IN_SECONDS)
-                        # Search Trakt for the TV show matching TV Time's title value
-                        trakt_show = TVShowSearcher(tv_show_season_number,
-                                                    tv_show_episode_number).search(Title(tv_show_name))
-
-                        # If the method returned 'None', then this is an indication to skip the episode, and
-                        # move onto the next one
-                        if not trakt_show:
-                            break
-                        # Show the progress of the import on-screen
-                        logging.info(
-                            f"({rowsCount + 1}/{rows_total}) - Processing '{tv_show_name}' Season {tv_show_season_number} /"
-                            f"Episode {tv_show_episode_number}"
-                        )
-                        # Get the season from the Trakt API
-                        season = trakt_show.seasons[
-                            parse_season_number(tv_show_season_number, trakt_show)
-                        ]
-                        # Get the episode from the season
-                        episode = season.episodes[int(tv_show_episode_number) - 1]
-                        # Mark the episode as watched!
-                        episode.mark_as_seen(tv_show_date_watched_converted)
-                        # Add the episode to the local database as imported, so it can be skipped,
-                        # if the process is repeated
-                        syncedEpisodesTable.insert({"episodeId": tv_show_episode_id})
-                        # Clear the error streak on completing the method without errors
-                        error_streak = 0
-                        break
-                    # Catch errors which occur because of an incorrect array index. This occurs when
-                    # an incorrect Trakt show has been selected, with season/episodes which don't match TV Time.
-                    # It can also occur due to a bug in Trakt Py, whereby some seasons contain an empty array of episodes.
-                    except IndexError:
-                        tv_show_slug = trakt_show.to_json()["shows"][0]["ids"]["ids"][
-                            "slug"
-                        ]
-                        logging.warning(
-                            f"({rowsCount}/{rows_total}) - {tv_show_name} Season {tv_show_season_number}, "
-                            f"Episode {tv_show_episode_number} does not exist in Trakt! "
-                            f"(https://trakt.tv/shows/{tv_show_slug}/seasons/{tv_show_season_number}/episodes/{tv_show_episode_number})"
-                        )
-                        break
-                    # Catch any errors which are raised because a show could not be found in Trakt
-                    except trakt.errors.NotFoundException:
-                        logging.warning(
-                            f"({rowsCount}/{rows_total}) - {tv_show_name} Season {tv_show_season_number}, "
-                            f"Episode {tv_show_episode_number} does not exist (search) in Trakt!"
-                        )
-                        break
-                    # Catch errors because of the program breaching the Trakt API rate limit
-                    except trakt.errors.RateLimitException:
-                        logging.warning(
-                            "The program is running too quickly and has hit Trakt's API rate limit! Please increase the delay between "
-                            + "episdoes via the variable 'DELAY_BETWEEN_EPISODES_IN_SECONDS'. The program will now wait 60 seconds before "
-                            + "trying again."
-                        )
-                        time.sleep(60)
-
-                        # Mark the exception in the error streak
-                        error_streak += 1
-                    # Catch a JSON decode error - this can be raised when the API server is down and produces a HTML page, instead of JSON
-                    except json.decoder.JSONDecodeError:
-                        logging.warning(
-                            f"({rowsCount}/{rows_total}) - A JSON decode error occuring whilst processing {tv_show_name} "
-                            + f"Season {tv_show_season_number}, Episode {tv_show_episode_number}! This might occur when the server is down and has produced "
-                            + "a HTML document instead of JSON. The script will wait 60 seconds before trying again."
-                        )
-
-                        # Wait 60 seconds
-                        time.sleep(60)
-
-                        # Mark the exception in the error streak
-                        error_streak += 1
-                    # Catch a CTRL + C keyboard input, and exits the program
-                    except KeyboardInterrupt:
-                        sys.exit("Cancel requested...")
-            # Skip the episode
-            else:
-                logging.info(
-                    f"({rowsCount}/{rows_total}) - Already imported, skipping '{tv_show_name}' Season {tv_show_season_number} / Episode {tv_show_episode_number}."
-                )
+        next(reader, None)
+        for rows_count, row in enumerate(reader):
+            tv_time_show = TVTimeTVShow(row)
+            TVShowProcessor().process_item(tv_time_show, rows_count / total_rows)
 
 
-def process_movies():
-    # Total amount of rows which have been processed in the CSV file
-    # Total amount of rows in the CSV file
-    error_streak = 0
-    # Open the CSV file within the GDPR exported data
+def process_watched_movies() -> None:
     with open(MOVIES_PATH, newline="") as csvfile:
-        # Create the CSV reader, which will break up the fields using the delimiter ','
-        movie_reader_temp = csv.DictReader(csvfile, delimiter=",")
-        movie_reader = filter(lambda p: "" != p["movie_name"], movie_reader_temp)
-        # First, list all movies with watched type so that watchlist entry for them is not created
-        watched_list = []
-        for row in movie_reader:
-            if row["type"] == "watch":
-                watched_list.append(row["movie_name"])
-        # Move position to the beginning of the file
+        reader = filter(lambda p: p["movie_name"] != "", csv.DictReader(csvfile, delimeter=""))
+        watched_list = [row["movie_name"] for row in reader if row["type"] == "watch"]
         csvfile.seek(0, 0)
-        # Get the total amount of rows in the CSV file,
-        rows_total = len(list(movie_reader))
-        # Move position to the beginning of the file
+        total_rows = len(list(reader))
         csvfile.seek(0, 0)
-        # Loop through each line/record of the CSV file
+
         # Ignore the header row
-        next(movie_reader, None)
-        for rows_count, row in enumerate(movie_reader):
-            # Get the name of the Movie
-            movie_name = row["movie_name"]
-            # Get the date which the movie was marked 'watched' in TV Time
-            activity_type = row["type"]
-            movie_date_watched = row["updated_at"]
-            # Parse the watched date value into a Python type
-            movie_date_watched_converted = datetime.strptime(
-                movie_date_watched, "%Y-%m-%d %H:%M:%S"
-            )
-
-            # Query the local database for previous entries indicating that
-            # the episode has already been imported in the past. Which will
-            # ease pressure on TV Time's API server during a retry of the import
-            # process, and just save time overall without needing to create network requests
-            movie_query = Query()
-            query_result = syncedMoviesTable.search(
-                (movie_query.movie_name == movie_name) & (movie_query.type == "watched")
-            )
-
-            watchlist_query = Query()
-            query_result_watchlist = syncedMoviesTable.search(
-                (watchlist_query.movie_name == movie_name)
-                & (watchlist_query.type == "watchlist")
-            )
-
-            # If the query returned no results, then continue to import it into Trakt
-            if len(query_result) == 0:
-                # Create a repeating loop, which will break on success, but repeats on failures
-                while True:
-                    # If movie is watched but this is an entry for watchlist, then skip
-                    if movie_name in watched_list and activity_type != "watch":
-                        logging.info(
-                            f"Skipping '{movie_name}' to avoid redundant watchlist entry."
-                        )
-                        break
-                    # If more than 10 errors occurred in one streak, whilst trying to import the episode
-                    # then give up, and move onto the next episode, but warn the user.
-                    if error_streak > 10:
-                        logging.warning(
-                            "An error occurred 10 times in a row... skipping episode..."
-                        )
-                        break
-                    try:
-                        # Sleep for a second between each process, before going onto the next watched episode.
-                        # This is required to remain within the API rate limit, and use the API server fairly.
-                        # Other developers share the service, for free - so be considerate of your usage.
-                        time.sleep(DELAY_BETWEEN_EPISODES_IN_SECONDS)
-                        # Search Trakt for the Movie matching TV Time's title value
-                        trakt_movie_obj = MovieSearcher().search(Title(movie_name))
-                        # If the method returned 'None', then this is an indication to skip the episode, and
-                        # move onto the next one
-                        if trakt_movie_obj is None:
-                            break
-                        # Show the progress of the import on-screen
-                        logging.info(
-                            f"({rows_count + 1}/{rows_total}) - Processing '{movie_name}'"
-                        )
-                        if activity_type == "watch":
-                            trakt_movie_obj.mark_as_seen(movie_date_watched_converted)
-                            # Add the episode to the local database as imported, so it can be skipped,
-                            # if the process is repeated
-                            syncedMoviesTable.insert(
-                                {"movie_name": movie_name, "type": "watched"}
-                            )
-                            logging.info(f"Marked as seen")
-                        elif len(query_result_watchlist) == 0:
-                            trakt_movie_obj.add_to_watchlist()
-                            # Add the episode to the local database as imported, so it can be skipped,
-                            # if the process is repeated
-                            syncedMoviesTable.insert(
-                                {"movie_name": movie_name, "type": "watchlist"}
-                            )
-                            logging.info(f"Added to watchlist")
-                        else:
-                            logging.warning(f"Already in watchlist")
-                        # Clear the error streak on completing the method without errors
-                        error_streak = 0
-                        break
-                    # Catch errors which occur because of an incorrect array index. This occurs when
-                    # an incorrect Trakt movie has been selected, with season/episodes which don't match TV Time.
-                    # It can also occur due to a bug in Trakt Py, whereby some seasons contain an empty array of episodes.
-                    except IndexError:
-                        movie_slug = trakt_movie_obj.to_json()["movies"][0]["ids"]["ids"][
-                            "slug"
-                        ]
-                        logging.warning(
-                            f"({rows_count}/{rows_total}) - {movie_name} "
-                            f"does not exist in Trakt! (https://trakt.tv/movies/{movie_slug}/)"
-                        )
-                        break
-                    # Catch any errors which are raised because a movie could not be found in Trakt
-                    except trakt.errors.NotFoundException:
-                        logging.warning(
-                            f"({rows_count}/{rows_total}) - {movie_name} does not exist (search) in Trakt!"
-                        )
-                        break
-                    # Catch errors because of the program breaching the Trakt API rate limit
-                    except trakt.errors.RateLimitException:
-                        logging.warning(
-                            "The program is running too quickly and has hit Trakt's API rate limit! Please increase the delay between "
-                            + "movies via the variable 'DELAY_BETWEEN_EPISODES_IN_SECONDS'. The program will now wait 60 seconds before "
-                            + "trying again."
-                        )
-                        time.sleep(60)
-
-                        # Mark the exception in the error streak
-                        error_streak += 1
-                    # Catch a JSON decode error - this can be raised when the API server is down and produces a HTML page, instead of JSON
-                    except json.decoder.JSONDecodeError:
-                        logging.warning(
-                            f"({rows_count}/{rows_total}) - A JSON decode error occuring whilst processing {movie_name} "
-                            + f" This might occur when the server is down and has produced "
-                            + "a HTML document instead of JSON. The script will wait 60 seconds before trying again."
-                        )
-
-                        # Wait 60 seconds
-                        time.sleep(60)
-
-                        # Mark the exception in the error streak
-                        error_streak += 1
-                    # Catch a CTRL + C keyboard input, and exits the program
-                    except KeyboardInterrupt:
-                        sys.exit("Cancel requested...")
-
-            # Skip the episode
-            else:
-                logging.info(
-                    f"({rows_count}/{rows_total}) - Already imported, skipping '{movie_name}'."
-                )
+        next(reader, None)
+        for rows_count, row in enumerate(reader):
+            movie = TVTimeMovie(row)
+            MovieProcessor(watched_list).process_item(movie, rows_count / total_rows)
 
 
 def menu_selection() -> int:
@@ -860,23 +640,17 @@ def start():
             "ERROR: Unable to complete authentication to Trakt - please try again."
         )
 
-    # Start the process which is required
     if selection == 1:
-        # Invoke the method which will import episodes which have been watched
-        # from TV Time into Trakt
         logging.info("Processing watched shows.")
         process_watched_shows()
         # TODO: Add support for followed shows
     elif selection == 2:
-        # Invoke the method which will import movies which have been watched
-        # from TV Time into Trakt
         logging.info("Processing movies.")
-        process_movies()
+        process_watched_movies()
     elif selection == 3:
-        # Invoke both the episodes and movies import methods
         logging.info("Processing both watched shows and movies.")
         process_watched_shows()
-        process_movies()
+        process_watched_movies()
 
 
 if __name__ == "__main__":
@@ -885,7 +659,6 @@ if __name__ == "__main__":
         start()
     else:
         logging.error(
-            "Oops! The TV Time GDPR folder '"
-            + config.gdpr_workspace_path
-            + "' does not exist on the local system. Please check it, and try again."
+            f"Oops! The TV Time GDPR folder 'config.gdpr_workspace_path'"
+            " does not exist on the local system. Please check it, and try again."
         )
