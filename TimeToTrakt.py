@@ -8,7 +8,7 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Callable, TypeVar, Union
+from typing import Optional, Callable, TypeVar, Union, Any
 
 import trakt.core
 from tinydb import Query, TinyDB
@@ -305,16 +305,37 @@ class Searcher:
             return None
 
 
+class TVTimeItem:
+    def __init__(self, name: str):
+        self.name = name
+
+
+class TVTimeTVShow(TVTimeItem):
+    def __init__(self, row: Any):
+        # Get the name of the item
+        super().__init__(row["tv_show_name"])
+        # Get the TV Time Episode id
+        self.episode_id = row["episode_id"]
+        # Get the TV Time Season Number
+        self.season_number = row["episode_season_number"]
+        # Get the TV Time Episode Number
+        self.episode_number = row["episode_number"]
+        # Get the date which the show was marked 'watched' in TV Time
+        # and parse the watched date value into a Python type
+        self.date_watched = datetime.strptime(
+            row["updated_at"], "%Y-%m-%d %H:%M:%S"
+        )
+
+
 class TVShowSearcher(Searcher):
-    def __init__(self, season_number: str, episode_number: str):
+    def __init__(self, tv_show: TVTimeTVShow):
         super().__init__(userMatchedShowsTable, TVShow.search, self._print_manual_selection)
-        self.season_number = season_number
-        self.episode_number = episode_number
+        self.tv_show = tv_show
 
     def _print_manual_selection(self, items_with_same_name: list[SearchResult]) -> None:
         print(
-            f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Show '{self.name}' (Season {self.season_number},"
-            f"Episode {self.episode_number}) has {len(items_with_same_name)} matching Trakt shows with the same name.\a "
+            f"INFO - MANUAL INPUT REQUIRED: The TV Time data for Show '{self.name}' (Season {self.tv_show.season_number},"
+            f"Episode {self.tv_show.episode_number}) has {len(items_with_same_name)} matching Trakt shows with the same name.\a "
         )
 
         # Output each show for manual selection
@@ -356,20 +377,7 @@ class Processor:
         # Ignore the header row
         next(self._reader, None)
         for rowsCount, row in enumerate(self._reader):
-            # Get the name of the item
-            tv_show_name = row["tv_show_name"]
-            # Get the TV Time Episode id
-            tv_show_episode_id = row["episode_id"]
-            # Get the TV Time Season Number
-            tv_show_season_number = row["episode_season_number"]
-            # Get the TV Time Episode Number
-            tv_show_episode_number = row["episode_number"]
-            # Get the date which the show was marked 'watched' in TV Time
-            tv_show_date_watched = row["updated_at"]
-            # Parse the watched date value into a Python type
-            tv_show_date_watched_converted = datetime.strptime(
-                tv_show_date_watched, "%Y-%m-%d %H:%M:%S"
-            )
+            tv_time_tv_show = TVTimeTVShow(row)
 
             # Query the local database for previous entries indicating that
             # the episode has already been imported in the past. Which will
