@@ -224,7 +224,7 @@ class TVTimeMovie(TVTimeItem):
 class Searcher(ABC):
     def __init__(self, user_matched_table: Table):
         self.name = ""
-        self.items_with_same_name = None
+        self.items_with_same_name: Optional[TraktItem] = None
         self._user_matched_table = user_matched_table
 
     def search(self, title: Title) -> Optional[TraktItem]:
@@ -541,7 +541,7 @@ class MovieProcessor(Processor):
         return True
 
     def _search_trakt(self, tv_time_movie: TVTimeMovie) -> TraktMovie:
-        return MovieSearcher().search(Title(tv_time_movie.name))
+        return MovieSearcher().search_trakt(tv_time_movie.name)
 
     def _process(self, tv_time_movie: TVTimeMovie, trakt_movie: TraktMovie, progress: float) -> None:
         logging.info(f"({progress}) - Processing '{tv_time_movie.name}'")
