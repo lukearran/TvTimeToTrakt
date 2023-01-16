@@ -133,7 +133,7 @@ class TVShowProcessor(Processor):
         return True
 
     def _search_trakt(self, tv_time_show: TVTimeTVShow) -> TraktTVShow:
-        return TVShowSearcher(tv_time_show).search_trakt(tv_time_show.name)
+        return TVShowSearcher(tv_time_show).search(tv_time_show.title)
 
     def _process(self, tv_time_show: TVTimeTVShow, trakt_show: TraktItem, progress: float) -> None:
         logging.info(
@@ -188,7 +188,7 @@ class MovieProcessor(Processor):
         return True
 
     def _search_trakt(self, tv_time_movie: TVTimeMovie) -> TraktMovie:
-        return MovieSearcher().search_trakt(tv_time_movie.name)
+        return MovieSearcher().search(tv_time_movie.title)
 
     def _process(self, tv_time_movie: TVTimeMovie, trakt_movie: TraktMovie, progress: float) -> None:
         logging.info(f"({progress}) - Processing '{tv_time_movie.name}'")

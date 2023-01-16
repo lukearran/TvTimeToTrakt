@@ -92,6 +92,7 @@ class Title:
 class TVTimeItem:
     def __init__(self, name: str, updated_at: str):
         self.name = name
+        self.title = Title(name)
         # Get the date which the show was marked 'watched' in TV Time
         # and parse the watched date value into a Python object
         self.date_watched = datetime.strptime(
