@@ -113,7 +113,7 @@ def menu_selection() -> int:
     # Display a menu selection
     print(">> What do you want to do?")
     print("    1) Import Watch History for TV Shows from TV Time")
-    print("    2) Import Watch Movies from TV Time")
+    print("    2) Import Watched Movies from TV Time")
     print("    3) Do both 1 and 2 (default)")
     print("    4) Exit")
 
