@@ -198,10 +198,7 @@ class Searcher(ABC):
         while True:
             try:
                 # Get the user's selection, either a numerical input, or a string 'SKIP' value
-                index_selected = input(
-                    "Please make a selection from above (or enter SKIP):"
-                )
-
+                index_selected = input("Please make a selection from above (or enter SKIP): ")
                 if index_selected == "SKIP":
                     break
 

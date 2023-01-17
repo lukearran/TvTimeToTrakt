@@ -148,7 +148,10 @@ class TVShowProcessor(Processor):
         # Add the episode to the local database as imported, so it can be skipped,
         # if the process is repeated
         syncedEpisodesTable.insert({"episodeId": tv_time_show.episode_id})
-        logging.info(f"'{tv_time_show.name}' marked as seen")
+        logging.info(
+            f"'{tv_time_show.name} Season {tv_time_show.season_number},"
+            f" Episode {tv_time_show.episode_number}' marked as seen"
+        )
 
     def _handle_index_error(self, tv_time_show: TVTimeTVShow, trakt_show: TraktTVShow, progress: float) -> None:
         tv_show_slug = trakt_show.to_json()["shows"][0]["ids"]["ids"]["slug"]
