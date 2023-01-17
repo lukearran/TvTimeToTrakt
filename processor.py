@@ -19,7 +19,7 @@ class Processor(ABC):
         pass
 
     @abstractmethod
-    def _log_already_imported(self, tv_time_item: TVTimeItem, progress: float) -> None:
+    def _log_already_imported(self, tv_time_item: TVTimeItem, progress: str) -> None:
         pass
 
     @abstractmethod
@@ -31,10 +31,10 @@ class Processor(ABC):
         pass
 
     @abstractmethod
-    def _process(self, tv_time_item: TVTimeItem, trakt_item: TraktItem, progress: float) -> None:
+    def _process(self, tv_time_item: TVTimeItem, trakt_item: TraktItem, progress: str) -> None:
         pass
 
-    def process_item(self, tv_time_item: TVTimeItem, progress: float, delay: int = 1) -> None:
+    def process_item(self, tv_time_item: TVTimeItem, progress: str, delay: int = 1) -> None:
         # Query the local database for previous entries indicating that
         # the item has already been imported in the past. Which will
         # ease pressure on Trakt's API server during a retry of the import
@@ -112,11 +112,11 @@ class Processor(ABC):
                 error_streak += 1
 
     @abstractmethod
-    def _handle_index_error(self, tv_time_item: TVTimeItem, trakt_item: TraktItem, progress: float) -> None:
+    def _handle_index_error(self, tv_time_item: TVTimeItem, trakt_item: TraktItem, progress: str) -> None:
         pass
 
     @abstractmethod
-    def _handle_not_found_exception(self, tv_time_item: TVTimeItem, progress: float) -> None:
+    def _handle_not_found_exception(self, tv_time_item: TVTimeItem, progress: str) -> None:
         pass
 
 
@@ -128,7 +128,7 @@ class TVShowProcessor(Processor):
         episode_completed_query = Query()
         return syncedEpisodesTable.search(episode_completed_query.episodeId == tv_time_show.episode_id)
 
-    def _log_already_imported(self, tv_time_show: TVTimeTVShow, progress: float) -> None:
+    def _log_already_imported(self, tv_time_show: TVTimeTVShow, progress: str) -> None:
         logging.info(
             f"({progress}) - Already imported,"
             f" skipping \'{tv_time_show.name}\' Season {tv_time_show.season_number} /"
@@ -141,7 +141,7 @@ class TVShowProcessor(Processor):
     def _search(self, tv_time_show: TVTimeTVShow) -> TraktTVShow:
         return TVShowSearcher(tv_time_show).search(tv_time_show.title)
 
-    def _process(self, tv_time_show: TVTimeTVShow, trakt_show: TraktItem, progress: float) -> None:
+    def _process(self, tv_time_show: TVTimeTVShow, trakt_show: TraktItem, progress: str) -> None:
         logging.info(
             f"({progress}) - Processing '{tv_time_show.name}'"
             f" Season {tv_time_show.season_number} /"
@@ -159,7 +159,7 @@ class TVShowProcessor(Processor):
             f" Episode {tv_time_show.episode_number}' marked as seen"
         )
 
-    def _handle_index_error(self, tv_time_show: TVTimeTVShow, trakt_show: TraktTVShow, progress: float) -> None:
+    def _handle_index_error(self, tv_time_show: TVTimeTVShow, trakt_show: TraktTVShow, progress: str) -> None:
         tv_show_slug = trakt_show.to_json()["shows"][0]["ids"]["ids"]["slug"]
         logging.warning(
             f"({progress}) - {tv_time_show.name} Season {tv_time_show.season_number},"
@@ -167,7 +167,7 @@ class TVShowProcessor(Processor):
             f" (https://trakt.tv/shows/{tv_show_slug}/seasons/{tv_time_show.season_number}/episodes/{tv_time_show.episode_number})"
         )
 
-    def _handle_not_found_exception(self, tv_time_show: TVTimeTVShow, progress: float) -> None:
+    def _handle_not_found_exception(self, tv_time_show: TVTimeTVShow, progress: str) -> None:
         logging.warning(
             f"({progress}) - {tv_time_show.name} Season {tv_time_show.season_number},"
             f" Episode {tv_time_show.episode_number} does not exist (search) in Trakt!"
@@ -185,7 +185,7 @@ class MovieProcessor(Processor):
             (movie_query.movie_name == tv_time_movie.name) & (movie_query.type == "watched")
         )
 
-    def _log_already_imported(self, tv_time_movie: TVTimeMovie, progress: float) -> None:
+    def _log_already_imported(self, tv_time_movie: TVTimeMovie, progress: str) -> None:
         logging.info(f"({progress}) - Already imported, skipping '{tv_time_movie.name}'.")
 
     def _should_continue(self, tv_time_movie: TVTimeMovie) -> bool:
@@ -199,7 +199,7 @@ class MovieProcessor(Processor):
     def _search(self, tv_time_movie: TVTimeMovie) -> TraktMovie:
         return MovieSearcher().search(tv_time_movie.title)
 
-    def _process(self, tv_time_movie: TVTimeMovie, trakt_movie: TraktMovie, progress: float) -> None:
+    def _process(self, tv_time_movie: TVTimeMovie, trakt_movie: TraktMovie, progress: str) -> None:
         logging.info(f"({progress}) - Processing '{tv_time_movie.name}'")
 
         watchlist_query = Query()
@@ -226,12 +226,12 @@ class MovieProcessor(Processor):
         else:
             logging.warning(f"{tv_time_movie.name} already in watchlist")
 
-    def _handle_index_error(self, tv_time_movie: TVTimeMovie, trakt_movie: TraktMovie, progress: float) -> None:
+    def _handle_index_error(self, tv_time_movie: TVTimeMovie, trakt_movie: TraktMovie, progress: str) -> None:
         movie_slug = trakt_movie.to_json()["movies"][0]["ids"]["ids"]["slug"]
         logging.warning(
             f"({progress}) - {tv_time_movie.name}"
             f" does not exist in Trakt! (https://trakt.tv/movies/{movie_slug}/)"
         )
 
-    def _handle_not_found_exception(self, tv_time_movie: TVTimeMovie, progress: float) -> None:
+    def _handle_not_found_exception(self, tv_time_movie: TVTimeMovie, progress: str) -> None:
         logging.warning(f"({progress}) - {tv_time_movie.name} does not exist (search) in Trakt!")

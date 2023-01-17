@@ -91,7 +91,7 @@ def process_watched_shows() -> None:
         next(reader, None)
         for rows_count, row in enumerate(reader):
             tv_time_show = TVTimeTVShow(row)
-            TVShowProcessor().process_item(tv_time_show, rows_count / total_rows)
+            TVShowProcessor().process_item(tv_time_show, "{:.2f}%".format(rows_count / total_rows * 100))
 
 
 def process_watched_movies() -> None:
@@ -106,7 +106,7 @@ def process_watched_movies() -> None:
         next(reader, None)
         for rows_count, row in enumerate(reader):
             movie = TVTimeMovie(row)
-            MovieProcessor(watched_list).process_item(movie, rows_count / total_rows)
+            MovieProcessor(watched_list).process_item(movie, "{:.2f}%".format(rows_count / total_rows * 100))
 
 
 def menu_selection() -> int:
