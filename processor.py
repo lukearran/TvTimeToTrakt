@@ -104,6 +104,12 @@ class Processor(ABC):
             # Catch a CTRL + C keyboard input, and exits the program
             except KeyboardInterrupt:
                 sys.exit("Cancel requested...")
+            except Exception as e:
+                logging.error(
+                    f"Got unknown error {e},"
+                    f" while processing {tv_time_item.name}"
+                )
+                error_streak += 1
 
     @abstractmethod
     def _handle_index_error(self, tv_time_item: TVTimeItem, trakt_item: TraktItem, progress: float) -> None:
