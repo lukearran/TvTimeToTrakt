@@ -156,6 +156,8 @@ class Searcher(ABC):
         single_result = self._check_single_result()
         if single_result:
             return single_result
+        elif len(self.items_with_same_name) < 1:
+            return None
 
         # If the search contains multiple results, then we need to confirm with the user which show
         # the script should use, or access the local database to see if the user has already provided
@@ -238,8 +240,6 @@ class Searcher(ABC):
             return complete_match_names[0]
         elif len(self.items_with_same_name) == 1:
             return self.items_with_same_name[0]
-        elif len(self.items_with_same_name) < 1:
-            return None
 
 
 class TVShowSearcher(Searcher):
