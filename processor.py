@@ -64,7 +64,7 @@ class Processor(ABC):
                 time.sleep(delay)
 
                 trakt_item = self._search_trakt(tv_time_item)
-                if not trakt_item:
+                if trakt_item is None:
                     break
 
                 self._process(tv_time_item, trakt_item, progress)

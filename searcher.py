@@ -186,7 +186,7 @@ class Searcher(ABC):
             first_match = query_result[0]
             first_match_selected_index = int(first_match.get("UserSelectedIndex"))
             skip_show = first_match.get("Skip")
-            if not skip_show:
+            if skip_show is None:
                 return True, self.items_with_same_name[first_match_selected_index]
             else:
                 return True, None
