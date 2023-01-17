@@ -24,24 +24,27 @@ class Title:
     without_year: str
     year: Optional[int]
 
-    def __init__(self, title: str):
+    def __init__(self, title: str, year: Optional[int] = None):
         """
-        Parse the title's name for year.
-        :param title:
+        Creates a Title object. If year is not passed, it tries to parse it from the title.
         """
-        try:
-            self.name = title
-            # Use a regex expression to get the value within the brackets e.g. The Americans (2017)
-            year_search = re.search(r"\(([A-Za-z0-9_]+)\)", title)
-            self.year = int(year_search.group(1))
-            # Then, get the title without the year value included
-            self.without_year = title.split("(")[0].strip()
-        except Exception:
-            # If the above failed, then the title doesn't include a year
-            # so create the value with "defaults"
-            self.name = title
+        self.name = title
+        if year is not None:
             self.without_year = title
-            self.year = None
+            self.year = year
+        else:
+            try:
+                # Use a regex expression to get the value within the brackets e.g. The Americans (2017)
+                year_search = re.search(r"\(([A-Za-z0-9_]+)\)", title)
+                self.year = int(year_search.group(1))
+                # Then, get the title without the year value included
+                self.without_year = title.split("(")[0].strip()
+            except Exception:
+                # If the above failed, then the title doesn't include a year
+                # so create the value with "defaults"
+                self.name = title
+                self.without_year = title
+                self.year = None
 
     def items_with_same_name(self, items: list[TraktItem]) -> list[TraktItem]:
         with_same_name = []
@@ -138,6 +141,16 @@ class TVTimeMovie(TVTimeItem):
     def __init__(self, row: Any):
         super().__init__(row["movie_name"], row["updated_at"])
         self.activity_type = row["type"]
+
+        # Release date is available for movies
+
+        release_date = datetime.strptime(
+            row["release_date"], "%Y-%m-%d %H:%M:%S"
+        )
+
+        # Check that date is valid
+        if release_date.year > 1800:
+            self.title = Title(self.title.name, release_date.year)
 
 
 class Searcher(ABC):

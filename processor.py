@@ -27,7 +27,7 @@ class Processor(ABC):
         pass
 
     @abstractmethod
-    def _search_trakt(self, tv_time_item: TVTimeItem) -> TraktItem:
+    def _search(self, tv_time_item: TVTimeItem) -> TraktItem:
         pass
 
     @abstractmethod
@@ -63,7 +63,7 @@ class Processor(ABC):
                 # Other developers share the service, for free - so be considerate of your usage.
                 time.sleep(delay)
 
-                trakt_item = self._search_trakt(tv_time_item)
+                trakt_item = self._search(tv_time_item)
                 if trakt_item is None:
                     break
 
@@ -138,7 +138,7 @@ class TVShowProcessor(Processor):
     def _should_continue(self, tv_time_show: TVTimeTVShow) -> bool:
         return True
 
-    def _search_trakt(self, tv_time_show: TVTimeTVShow) -> TraktTVShow:
+    def _search(self, tv_time_show: TVTimeTVShow) -> TraktTVShow:
         return TVShowSearcher(tv_time_show).search(tv_time_show.title)
 
     def _process(self, tv_time_show: TVTimeTVShow, trakt_show: TraktItem, progress: float) -> None:
@@ -196,7 +196,7 @@ class MovieProcessor(Processor):
 
         return True
 
-    def _search_trakt(self, tv_time_movie: TVTimeMovie) -> TraktMovie:
+    def _search(self, tv_time_movie: TVTimeMovie) -> TraktMovie:
         return MovieSearcher().search(tv_time_movie.title)
 
     def _process(self, tv_time_movie: TVTimeMovie, trakt_movie: TraktMovie, progress: float) -> None:
