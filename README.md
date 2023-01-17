@@ -30,7 +30,7 @@ TV Time's API is not open. In order to get access to your personal data, you wil
 1. Go to "Settings" under your profile
 2. Select ["Your API Applications"](https://trakt.tv/oauth/applications)
 3. Select "New Application"
-4. Provide a name into "Name" e.g John Smith Import from TV Time
+4. Provide a name into "Name" e.g. John Smith Import from TV Time
 5. Paste "urn:ietf:wg:oauth:2.0:oob" into "Redirect uri:"
 6. Click "Save App"
 7. Make note of your details to be used later.
