@@ -1,2 +1,2 @@
-trakt==3.4.0
+pytrakt~=3.4.30
 tinydb==4.6.1

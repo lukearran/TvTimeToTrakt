@@ -120,7 +120,7 @@ class TVTimeTVShow(TVTimeItem):
 
         season_number = int(self.season_number)
         # Gen get the Season Number from the first item in the array
-        first_season_no = trakt_show.seasons[0].number
+        first_season_no = trakt_show.seasons[0].season
 
         # If the season number is 0, then the Trakt show contains a "special" season
         if first_season_no == 0:
