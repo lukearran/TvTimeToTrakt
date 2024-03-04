@@ -14,9 +14,11 @@ from searcher import TVTimeTVShow, TVTimeMovie
 
 # Setup logger
 logging.basicConfig(
-    format="%(asctime)s [%(levelname)7s] :: %(message)s",
+    format="%(asctime)s [%(levelname)s] :: %(message)s",
+    encoding='utf-8',
     level=logging.INFO,
     datefmt="%Y-%m-%d %H:%M:%S",
+#    datefmt="%x %X", #Uncomment for locale date and time, if preffered
 )
 
 # Adjust this value to increase/decrease your requests between episodes.
