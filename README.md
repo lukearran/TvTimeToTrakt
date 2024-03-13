@@ -49,6 +49,8 @@ python -m pip install -r requirements.txt
 
 Create a new file named `config.json` in the same directory of `TimeToTrakt.py`, using the below JSON contents (replace the values with your own).
 
+Use forward slash or double backslash for `GDPR_WORKSPACE_PATH` if you encounter `json.decoder.JSONDecodeError: Invalid \escape: line 4 column 31 (char 206)`, as seen [here](https://github.com/lukearran/TvTimeToTrakt/issues/18) and [here](https://github.com/lukearran/TvTimeToTrakt/issues/39).
+
 ```
 {
     "CLIENT_ID": "YOUR_CLIENT_ID",
