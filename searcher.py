@@ -143,10 +143,13 @@ class TVTimeMovie(TVTimeItem):
         self.activity_type = row["type"]
 
         # Release date is available for movies
-
-        release_date = datetime.strptime(
-            row["release_date"], "%Y-%m-%d %H:%M:%S"
-        )
+        try:
+            release_date = datetime.strptime(
+                row["release_date"], "%Y-%m-%d %H:%M:%S"
+            )
+        except ValueError:
+            # Use current date to make the script work but this mght need to be changed.
+            release_date = datetime.today()
 
         # Check that date is valid
         if release_date.year > 1800:
