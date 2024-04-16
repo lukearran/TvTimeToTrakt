@@ -144,13 +144,19 @@ class TVTimeMovie(TVTimeItem):
 
         # Release date is available for movies
 
-        release_date = datetime.strptime(
-            row["release_date"], "%Y-%m-%d %H:%M:%S"
-        )
+        try:
+            release_date = datetime.strptime(row["release_date"], "%Y-%m-%d %H:%M:%S")
+            release_year = release_date.year
+        except ValueError:
+            # If parsing the release date fails, set the year to 0
+            release_year = 0
 
         # Check that date is valid
-        if release_date.year > 1800:
-            self.title = Title(self.title.name, release_date.year)
+        if release_year > 1800:
+            self.title = Title(self.title.name, release_year)
+        else:
+            # If the year is 0 or invalid, use the title as a search term
+            self.title = Title(self.title.name)
 
 
 class Searcher(ABC):
