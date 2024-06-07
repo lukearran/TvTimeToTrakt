@@ -93,6 +93,8 @@ def process_watched_shows(path: str) -> None:
         for rows_count, row in enumerate(reader):
             if row["episode_number"] == "":  # if not an episode entry
                 continue
+            if row["series_name"] == "":  # if the series name is blank
+                continue
             tv_time_show = TVTimeTVShow(row)
             TVShowProcessor().process_item(tv_time_show, "{:.2f}%".format(rows_count / total_rows * 100))
 
