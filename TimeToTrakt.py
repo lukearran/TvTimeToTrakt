@@ -66,10 +66,9 @@ def get_configuration() -> Config:
 
 config = get_configuration()
 
-WATCHED_SHOWS_PATH = config.gdpr_workspace_path + "/seen_episode.csv"
+WATCHED_SHOWS_PATH = config.gdpr_workspace_path + "/tracking-prod-records-v2.csv"
 FOLLOWED_SHOWS_PATH = config.gdpr_workspace_path + "/followed_tv_show.csv"
-MOVIES_PATH = config.gdpr_workspace_path + "/tracking-prod-records.csv"
-
+SHOWS_AND_MOVIES_PATH = config.gdpr_workspace_path + "/tracking-prod-records.csv"
 
 def init_trakt_auth() -> bool:
     if is_authenticated():
@@ -97,7 +96,7 @@ def process_watched_shows() -> None:
 
 
 def process_watched_movies() -> None:
-    with open(MOVIES_PATH, newline="") as csvfile:
+    with open(SHOWS_AND_MOVIES_PATH, newline="") as csvfile:
         reader = filter(lambda p: p["movie_name"] != "", csv.DictReader(csvfile, delimiter=","))
         watched_list = [row["movie_name"] for row in reader if row["type"] == "watch"]
         csvfile.seek(0, 0)

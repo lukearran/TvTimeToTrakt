@@ -105,9 +105,9 @@ class TVTimeItem:
 
 class TVTimeTVShow(TVTimeItem):
     def __init__(self, row: Any):
-        super().__init__(row["tv_show_name"], row["updated_at"])
+        super().__init__(row["series_name"], row["created_at"])
         self.episode_id = row["episode_id"]
-        self.season_number = row["episode_season_number"]
+        self.season_number = row["season_number"]
         self.episode_number = row["episode_number"]
 
     def parse_season_number(self, trakt_show: TraktTVShow) -> int:
