@@ -184,7 +184,7 @@ class Searcher(ABC):
         # If the user has not provided a manual selection already in the process
         # then prompt the user to make a selection
         else:
-            self._handle_multiple_manually()
+            return self._handle_multiple_manually()
 
     @abstractmethod
     def search_trakt(self, name: str) -> list[TraktItem]:
