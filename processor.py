@@ -190,7 +190,7 @@ class MovieProcessor(Processor):
 
     def _should_continue(self, tv_time_movie: TVTimeMovie) -> bool:
         # If movie is watched but this is an entry for watchlist, then skip
-        if tv_time_movie.name in self._watched_list and tv_time_movie.activity_type != "watch":
+        if tv_time_movie.name in self._watched_list and tv_time_movie.activity_type not in ["watch", "rewatch"]:
             logging.info(f"Skipping '{tv_time_movie.name}' to avoid redundant watchlist entry.")
             return False
 
@@ -207,7 +207,7 @@ class MovieProcessor(Processor):
             (watchlist_query.movie_name == tv_time_movie.name) & (watchlist_query.type == "watchlist")
         )
 
-        if tv_time_movie.activity_type == "watch":
+        if tv_time_movie.activity_type in ["watch", "rewatch"]:
             trakt_movie.mark_as_seen(tv_time_movie.date_watched)
             # Add the episode to the local database as imported, so it can be skipped,
             # if the process is repeated
