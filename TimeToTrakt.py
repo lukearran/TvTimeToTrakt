@@ -97,7 +97,7 @@ def process_watched_shows(path: str) -> None:
             TVShowProcessor().process_item(tv_time_show, "{:.2f}%".format(rows_count / total_rows * 100))
 
 def process_watched_movies() -> None:
-    with open(SHOWS_AND_MOVIES_PATH, newline="") as csvfile:
+    with open(SHOWS_AND_MOVIES_PATH, newline="", encoding="UTF-8") as csvfile:
         reader = filter(lambda p: p["movie_name"] != "", csv.DictReader(csvfile, delimiter=","))
         watched_list = [row["movie_name"] for row in reader if row["type"] == "watch"]
         csvfile.seek(0, 0)
