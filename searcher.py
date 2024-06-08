@@ -105,9 +105,9 @@ class TVTimeItem:
 
 class TVTimeTVShow(TVTimeItem):
     def __init__(self, row: Any):
-        super().__init__(row["tv_show_name"], row["updated_at"])
+        super().__init__(row["series_name"], row["created_at"])
         self.episode_id = row["episode_id"]
-        self.season_number = row["episode_season_number"]
+        self.season_number = row["season_number"]
         self.episode_number = row["episode_number"]
 
     def parse_season_number(self, trakt_show: TraktTVShow) -> int:
@@ -143,6 +143,8 @@ class TVTimeMovie(TVTimeItem):
         self.activity_type = row["type"]
 
         # Release date is available for movies
+        if row["release_date"][0:4] == "0000":  # some entries had a release date of 0000
+            return
 
         release_date = datetime.strptime(
             row["release_date"], "%Y-%m-%d %H:%M:%S"
@@ -182,7 +184,7 @@ class Searcher(ABC):
         # If the user has not provided a manual selection already in the process
         # then prompt the user to make a selection
         else:
-            self._handle_multiple_manually()
+            return self._handle_multiple_manually()
 
     @abstractmethod
     def search_trakt(self, name: str) -> list[TraktItem]:
@@ -201,10 +203,10 @@ class Searcher(ABC):
             first_match = query_result[0]
             first_match_selected_index = int(first_match.get("UserSelectedIndex"))
             skip_show = first_match.get("Skip")
-            if skip_show is None:
-                return True, self.items_with_same_name[first_match_selected_index]
-            else:
+            if skip_show:
                 return True, None
+            else:
+                return True, self.items_with_same_name[first_match_selected_index]
         else:
             return False, None
 

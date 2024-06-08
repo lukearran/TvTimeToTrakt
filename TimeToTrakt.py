@@ -66,10 +66,9 @@ def get_configuration() -> Config:
 
 config = get_configuration()
 
-WATCHED_SHOWS_PATH = config.gdpr_workspace_path + "/seen_episode.csv"
+WATCHED_SHOWS_PATH = config.gdpr_workspace_path + "/tracking-prod-records-v2.csv"
 FOLLOWED_SHOWS_PATH = config.gdpr_workspace_path + "/followed_tv_show.csv"
-MOVIES_PATH = config.gdpr_workspace_path + "/tracking-prod-records.csv"
-
+SHOWS_AND_MOVIES_PATH = config.gdpr_workspace_path + "/tracking-prod-records.csv"
 
 def init_trakt_auth() -> bool:
     if is_authenticated():
@@ -83,8 +82,8 @@ def init_trakt_auth() -> bool:
     )
 
 
-def process_watched_shows() -> None:
-    with open(WATCHED_SHOWS_PATH, newline="", encoding="UTF-8") as csvfile:
+def process_watched_shows(path: str) -> None:
+    with open(path, newline="", encoding="UTF-8") as csvfile:
         reader = csv.DictReader(csvfile, delimiter=",")
         total_rows = len(list(reader))
         csvfile.seek(0, 0)
@@ -92,12 +91,15 @@ def process_watched_shows() -> None:
         # Ignore the header row
         next(reader, None)
         for rows_count, row in enumerate(reader):
+            if row["episode_number"] == "":  # if not an episode entry
+                continue
+            if row["series_name"] == "":  # if the series name is blank
+                continue
             tv_time_show = TVTimeTVShow(row)
             TVShowProcessor().process_item(tv_time_show, "{:.2f}%".format(rows_count / total_rows * 100))
 
-
 def process_watched_movies() -> None:
-    with open(MOVIES_PATH, newline="") as csvfile:
+    with open(SHOWS_AND_MOVIES_PATH, newline="", encoding="UTF-8") as csvfile:
         reader = filter(lambda p: p["movie_name"] != "", csv.DictReader(csvfile, delimiter=","))
         watched_list = [row["movie_name"] for row in reader if row["type"] == "watch"]
         csvfile.seek(0, 0)
@@ -149,14 +151,16 @@ def start():
 
     if selection == 1:
         logging.info("Processing watched shows.")
-        process_watched_shows()
+        process_watched_shows(SHOWS_AND_MOVIES_PATH)
+        process_watched_shows(WATCHED_SHOWS_PATH)
         # TODO: Add support for followed shows
     elif selection == 2:
         logging.info("Processing movies.")
         process_watched_movies()
     elif selection == 3:
         logging.info("Processing both watched shows and movies.")
-        process_watched_shows()
+        process_watched_shows(SHOWS_AND_MOVIES_PATH)
+        process_watched_shows(WATCHED_SHOWS_PATH)
         process_watched_movies()
 
 
