@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 import sys
@@ -11,13 +12,16 @@ from tinydb.table import Table
 from trakt.movies import Movie
 from trakt.tv import TVShow
 
-from TimeToTrakt import get_configuration
 from database import userMatchedShowsTable, userMatchedMoviesTable
 
 TraktTVShow = TypeVar("TraktTVShow")
 TraktMovie = TypeVar("TraktMovie")
 TraktItem = Union[TraktTVShow, TraktMovie]
-DATE_TIME_FORMAT = get_configuration().date_format
+try:
+    with open("config.json") as f:
+        DATE_TIME_FORMAT = json.load(f)["DATE_FORMAT"]
+except FileNotFoundError:
+        logging.info("config.json not found prompting user for input")
 
 @dataclass
 class Title:
