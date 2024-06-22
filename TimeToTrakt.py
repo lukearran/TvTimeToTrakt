@@ -169,10 +169,9 @@ def start():
 
 if __name__ == "__main__":
     # Check that the user has provided the GDPR path
-    if os.path.isdir(config.movie_path):
+    if os.path.isfile(config.movie_path) and os.path.isfile(config.show_path):
         start()
     else:
         logging.error(
-            f"Oops! The TV Time GDPR folder 'config.gdpr_workspace_path'"
-            " does not exist on the local system. Please check it, and try again."
+            f"Oops! The file provided does not exist on the local system. Please check it, and try again."
         )
