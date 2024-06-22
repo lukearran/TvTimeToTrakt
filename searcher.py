@@ -145,6 +145,9 @@ class TVTimeMovie(TVTimeItem):
         # Release date is available for movies
         if row["release_date"][0:4] == "0000":  # some entries had a release date of 0000
             return
+        
+        if row["release_date"] == "":
+            return
 
         release_date = datetime.strptime(
             row["release_date"], "%Y-%m-%d %H:%M:%S"
