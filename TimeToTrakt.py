@@ -33,6 +33,7 @@ class Config:
     client_secret: str
     movie_path: str
     show_path: str
+    date_format: str
 
 
 def is_authenticated() -> bool:
@@ -54,7 +55,8 @@ def get_configuration() -> Config:
             data["CLIENT_ID"],
             data["CLIENT_SECRET"],
             data["MOVIE_DATA_PATH"],
-            data["SHOW_DATA_PATH"]
+            data["SHOW_DATA_PATH"],
+            data["DATE_FORMAT"]
         )
     except FileNotFoundError:
         logging.info("config.json not found prompting user for input")
@@ -63,7 +65,8 @@ def get_configuration() -> Config:
             input("Enter you Client id: "),
             input("Enter your Client secret: "),
             input("Enter your Movie Data Path: "),
-            input("Enter your Show Data Path")
+            input("Enter your Show Data Path: "),
+            input("Please enter the date format: ")
         )
 
 
