@@ -50,12 +50,13 @@ python -m pip install -r requirements.txt
 Create a new file named `config.json` in the same directory of `TimeToTrakt.py`, using the below JSON contents (replace the values with your own).
 
 Use forward slash or double backslash for `GDPR_WORKSPACE_PATH` if you encounter `json.decoder.JSONDecodeError: Invalid \escape: line 4 column 31 (char 206)`, as seen [here](https://github.com/lukearran/TvTimeToTrakt/issues/18) and [here](https://github.com/lukearran/TvTimeToTrakt/issues/39).
-
+The movie and show data is usually in "tracking-prod-records.csv" and "tracking-prod-records-v2.csv" respectively, however please check this is where your data is stored.
 ```
 {
     "CLIENT_ID": "YOUR_CLIENT_ID",
     "CLIENT_SECRET": "YOUR_CLIENT_SECRET",
-    "GDPR_WORKSPACE_PATH": "DIRECTORY_OF_YOUR_GDPR_REQUEST_DATA",
+    "MOVIE_DATA_PATH": "DIRECTORY_OF_YOUR_GDPR_REQUEST_MOVIE_DATA",
+    "SHOW_DATA_PATH": "DIRECTORY_OF_YOUR_GDPR_REQUEST_SHOW_DATA",
     "TRAKT_USERNAME": "YOUR_TRAKT_USERNAME"
 }
 ```
