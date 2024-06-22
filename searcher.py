@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 import sys
@@ -16,7 +17,11 @@ from database import userMatchedShowsTable, userMatchedMoviesTable
 TraktTVShow = TypeVar("TraktTVShow")
 TraktMovie = TypeVar("TraktMovie")
 TraktItem = Union[TraktTVShow, TraktMovie]
-
+try:
+    with open("config.json") as f:
+        DATE_TIME_FORMAT = json.load(f)["DATE_FORMAT"]
+except FileNotFoundError:
+        logging.info("config.json not found prompting user for input")
 
 @dataclass
 class Title:
@@ -99,7 +104,7 @@ class TVTimeItem:
         # Get the date which the show was marked 'watched' in TV Time
         # and parse the watched date value into a Python object
         self.date_watched = datetime.strptime(
-            updated_at, "%Y-%m-%d %H:%M:%S"
+            updated_at, DATE_TIME_FORMAT
         )
 
 
@@ -146,8 +151,11 @@ class TVTimeMovie(TVTimeItem):
         if row["release_date"][0:4] == "0000":  # some entries had a release date of 0000
             return
 
+        if row["release_date"] == "":
+            return
+
         release_date = datetime.strptime(
-            row["release_date"], "%Y-%m-%d %H:%M:%S"
+            row["release_date"], DATE_TIME_FORMAT
         )
 
         # Check that date is valid

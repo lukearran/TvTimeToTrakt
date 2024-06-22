@@ -51,12 +51,17 @@ Create a new file named `config.json` in the same directory of `TimeToTrakt.py`,
 
 Use forward slash or double backslash for `GDPR_WORKSPACE_PATH` if you encounter `json.decoder.JSONDecodeError: Invalid \escape: line 4 column 31 (char 206)`, as seen [here](https://github.com/lukearran/TvTimeToTrakt/issues/18) and [here](https://github.com/lukearran/TvTimeToTrakt/issues/39).
 
+The movie and show data is usually in "tracking-prod-records.csv" and "tracking-prod-records-v2.csv" respectively, however please check this is where your data is actually stored.
+
+Date format can be left as the default value unless you receive an error. If you receive an error about the time data not matching format, update this value using the [docs](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes).
 ```
 {
     "CLIENT_ID": "YOUR_CLIENT_ID",
     "CLIENT_SECRET": "YOUR_CLIENT_SECRET",
-    "GDPR_WORKSPACE_PATH": "DIRECTORY_OF_YOUR_GDPR_REQUEST_DATA",
+    "MOVIE_DATA_PATH": "DIRECTORY_OF_YOUR_GDPR_REQUEST_MOVIE_DATA",
+    "SHOW_DATA_PATH": "DIRECTORY_OF_YOUR_GDPR_REQUEST_SHOW_DATA",
     "TRAKT_USERNAME": "YOUR_TRAKT_USERNAME"
+    "DATE_FORMAT": "%Y-%m-%d %H:%M:%S"
 }
 ```
 

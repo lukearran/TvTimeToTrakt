@@ -31,7 +31,9 @@ class Config:
     trakt_username: str
     client_id: str
     client_secret: str
-    gdpr_workspace_path: str
+    movie_path: str
+    show_path: str
+    date_format: str
 
 
 def is_authenticated() -> bool:
@@ -52,7 +54,9 @@ def get_configuration() -> Config:
             data["TRAKT_USERNAME"],
             data["CLIENT_ID"],
             data["CLIENT_SECRET"],
-            data["GDPR_WORKSPACE_PATH"],
+            data["MOVIE_DATA_PATH"],
+            data["SHOW_DATA_PATH"],
+            data["DATE_FORMAT"]
         )
     except FileNotFoundError:
         logging.info("config.json not found prompting user for input")
@@ -60,15 +64,16 @@ def get_configuration() -> Config:
             input("Enter your Trakt.tv username: "),
             input("Enter you Client id: "),
             input("Enter your Client secret: "),
-            input("Enter your GDPR workspace path: ")
+            input("Enter your Movie Data Path: "),
+            input("Enter your Show Data Path: "),
+            input("Please enter the date format: ")
         )
 
 
 config = get_configuration()
 
-WATCHED_SHOWS_PATH = config.gdpr_workspace_path + "/tracking-prod-records-v2.csv"
-FOLLOWED_SHOWS_PATH = config.gdpr_workspace_path + "/followed_tv_show.csv"
-SHOWS_AND_MOVIES_PATH = config.gdpr_workspace_path + "/tracking-prod-records.csv"
+WATCHED_SHOWS_PATH = config.show_path
+WATCHED_MOVIES_PATH = config.movie_path
 
 def init_trakt_auth() -> bool:
     if is_authenticated():
@@ -82,8 +87,8 @@ def init_trakt_auth() -> bool:
     )
 
 
-def process_watched_shows(path: str) -> None:
-    with open(path, newline="", encoding="UTF-8") as csvfile:
+def process_watched_shows() -> None:
+    with open(WATCHED_SHOWS_PATH, newline="", encoding="UTF-8") as csvfile:
         reader = csv.DictReader(csvfile, delimiter=",")
         total_rows = len(list(reader))
         csvfile.seek(0, 0)
@@ -99,7 +104,7 @@ def process_watched_shows(path: str) -> None:
             TVShowProcessor().process_item(tv_time_show, "{:.2f}%".format(rows_count / total_rows * 100))
 
 def process_watched_movies() -> None:
-    with open(SHOWS_AND_MOVIES_PATH, newline="", encoding="UTF-8") as csvfile:
+    with open(WATCHED_MOVIES_PATH, newline="", encoding="UTF-8") as csvfile:
         reader = filter(lambda p: p["movie_name"] != "", csv.DictReader(csvfile, delimiter=","))
         watched_list = [row["movie_name"] for row in reader if row["type"] == "watch"]
         csvfile.seek(0, 0)
@@ -151,25 +156,22 @@ def start():
 
     if selection == 1:
         logging.info("Processing watched shows.")
-        process_watched_shows(SHOWS_AND_MOVIES_PATH)
-        process_watched_shows(WATCHED_SHOWS_PATH)
+        process_watched_shows()
         # TODO: Add support for followed shows
     elif selection == 2:
         logging.info("Processing movies.")
         process_watched_movies()
     elif selection == 3:
         logging.info("Processing both watched shows and movies.")
-        process_watched_shows(SHOWS_AND_MOVIES_PATH)
-        process_watched_shows(WATCHED_SHOWS_PATH)
+        process_watched_shows()
         process_watched_movies()
 
 
 if __name__ == "__main__":
     # Check that the user has provided the GDPR path
-    if os.path.isdir(config.gdpr_workspace_path):
+    if os.path.isfile(config.movie_path) and os.path.isfile(config.show_path):
         start()
     else:
         logging.error(
-            f"Oops! The TV Time GDPR folder 'config.gdpr_workspace_path'"
-            " does not exist on the local system. Please check it, and try again."
+            f"Oops! The file provided does not exist on the local system. Please check it, and try again."
         )
