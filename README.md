@@ -61,7 +61,7 @@ Date format can be left as the default value unless you receive an error. If you
     "MOVIE_DATA_PATH": "DIRECTORY_OF_YOUR_GDPR_REQUEST_MOVIE_DATA",
     "SHOW_DATA_PATH": "DIRECTORY_OF_YOUR_GDPR_REQUEST_SHOW_DATA",
     "TRAKT_USERNAME": "YOUR_TRAKT_USERNAME"
-    "DATE_FORMAT": "%d/%m/%Y %H:%M"
+    "DATE_FORMAT": "%Y-%m-%d %H:%M:%S"
 }
 ```
 
