@@ -99,7 +99,7 @@ class TVTimeItem:
         # Get the date which the show was marked 'watched' in TV Time
         # and parse the watched date value into a Python object
         self.date_watched = datetime.strptime(
-            updated_at, "%Y-%m-%d %H:%M:%S"
+            updated_at, "%Y-%m-%d %H:%M"
         )
 
 
@@ -150,7 +150,7 @@ class TVTimeMovie(TVTimeItem):
             return
 
         release_date = datetime.strptime(
-            row["release_date"], "%Y-%m-%d %H:%M:%S"
+            row["release_date"], "%Y-%m-%d %H:%M"
         )
 
         # Check that date is valid
