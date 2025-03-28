@@ -156,7 +156,7 @@ class TVShowProcessor(Processor):
         syncedEpisodesTable.insert({"episodeId": tv_time_show.episode_id})
         logging.info(
             f"'{tv_time_show.name} Season {tv_time_show.season_number},"
-            f" Episode {tv_time_show.episode_number}' marked as seen"
+            f" Episode {tv_time_show.episode_number}' marked as seen at {tv_time_show.date_watched.strftime('%Y-%m-%d %H:%M:%S')}"
         )
 
     def _handle_index_error(self, tv_time_show: TVTimeTVShow, trakt_show: TraktTVShow, progress: str) -> None:
@@ -214,7 +214,7 @@ class MovieProcessor(Processor):
             syncedMoviesTable.insert(
                 {"movie_name": tv_time_movie.name, "type": "watched"}
             )
-            logging.info(f"'{tv_time_movie.name}' marked as seen")
+            logging.info(f"'{tv_time_movie.name}' marked as seen at {tv_time_movie.date_watched.strftime('%Y-%m-%d %H:%M:%S')}")
         elif len(movies_in_watchlist) == 0:
             trakt_movie.add_to_watchlist()
             # Add the episode to the local database as imported, so it can be skipped,
