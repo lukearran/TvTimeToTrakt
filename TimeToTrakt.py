@@ -72,6 +72,18 @@ def get_configuration() -> Config:
 
 config = get_configuration()
 
+# Check if the user has provided the folder path or file paths
+if config.movie_path == config.show_path and os.path.isdir(config.movie_path):
+    config.movie_path = os.path.join(config.movie_path, "tracking-prod-records.csv")
+    config.show_path = os.path.join(config.show_path, "tracking-prod-records-v2.csv")
+
+    for path in (config.movie_path, config.show_path):
+        if not os.path.isfile(path):
+            logging.error(
+                "Oops! The files provided do not exist on the local system. Please ensure the paths provided are to the specific files and not the folder they are in, and try again."
+            )
+            break
+
 WATCHED_SHOWS_PATH = config.show_path
 WATCHED_MOVIES_PATH = config.movie_path
 
